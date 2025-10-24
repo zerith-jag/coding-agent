@@ -104,7 +104,7 @@ Production-ready infrastructure: Gateway, Auth, Databases, Message Bus, Observab
 - ✅ Implement all YARP routes (8 services)
 - ✅ Add health check aggregation
 - [ ] Configure load balancing (round-robin)
-- [ ] Setup circuit breakers (Polly)
+- ✅ Setup circuit breakers and resilience policies (Polly)
 
 - **Deliverable**: Gateway routes all traffic correctly
 
