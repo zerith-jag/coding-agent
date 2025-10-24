@@ -20,30 +20,51 @@ public class ChatDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Set schema for all tables in this context
+        modelBuilder.HasDefaultSchema("chat");
+
         // Conversation configuration
         modelBuilder.Entity<Conversation>(entity =>
         {
+            entity.ToTable("conversations");
             entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever(); // We generate GUIDs in the entity
+
             entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
             entity.Property(e => e.UserId).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
             entity.Property(e => e.UpdatedAt).IsRequired();
-            
+
             // One-to-many relationship with Messages
             entity.HasMany(e => e.Messages)
                 .WithOne()
                 .HasForeignKey(m => m.ConversationId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Indexes for common queries
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.CreatedAt);
         });
 
         // Message configuration
         modelBuilder.Entity<Message>(entity =>
         {
+            entity.ToTable("messages");
             entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever(); // We generate GUIDs in the entity
+
             entity.Property(e => e.ConversationId).IsRequired();
-            entity.Property(e => e.Content).IsRequired();
-            entity.Property(e => e.Role).IsRequired();
+            entity.Property(e => e.Content).IsRequired().HasMaxLength(50000); // Allow long messages
+            entity.Property(e => e.Role).IsRequired().HasConversion<string>(); // Store enum as string
             entity.Property(e => e.SentAt).IsRequired();
+
+            // Indexes for common queries
+            entity.HasIndex(e => e.ConversationId);
+            entity.HasIndex(e => e.SentAt);
         });
     }
 }

@@ -1,12 +1,26 @@
 using CodingAgent.Services.Orchestration.Api.Endpoints;
+using CodingAgent.Services.Orchestration.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Database configuration
+var connectionString = builder.Configuration.GetConnectionString("OrchestrationDb")
+    ?? throw new InvalidOperationException("OrchestrationDb connection string is required");
+
+builder.Services.AddDbContext<OrchestrationDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
 // Health checks
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<OrchestrationDbContext>()
+    .AddNpgSql(
+    connectionString,
+        name: "postgresql",
+        tags: new[] { "db", "ready" });
 
 // OpenTelemetry configuration
 var serviceName = "CodingAgent.Services.Orchestration";
@@ -18,11 +32,12 @@ builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
+        .AddEntityFrameworkCoreInstrumentation()
         .AddOtlpExporter(options =>
         {
             // Default OTLP endpoint (will be configured via appsettings for production)
             options.Endpoint = new Uri(
-                builder.Configuration["OpenTelemetry:OtlpEndpoint"] 
+                builder.Configuration["OpenTelemetry:OtlpEndpoint"]
                 ?? "http://localhost:4317");
         }))
     .WithMetrics(metrics => metrics
@@ -68,4 +83,18 @@ app.MapGet("/", () => Results.Ok(new
 .WithName("Root")
 .ExcludeFromDescription();
 
-app.Run();
+// Ensure database schema exists (dev/test convenience)
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<OrchestrationDbContext>();
+    try
+    {
+        await db.Database.EnsureCreatedAsync();
+    }
+    catch
+    {
+        // Ignore schema creation failures in scenarios where DB isn't reachable
+    }
+}
+
+await app.RunAsync();
