@@ -7,7 +7,7 @@ on:
       - '.github/**'
       - 'docs/**'
   push:
-    branches: [ main ]
+    branches: [ master ]
     paths:
       - '**/*.md'
       - '.github/**'
