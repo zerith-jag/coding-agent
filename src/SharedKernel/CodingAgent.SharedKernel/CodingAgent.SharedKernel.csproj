@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    
+    <!-- NuGet Package Configuration -->
+    <PackageId>CodingAgent.SharedKernel</PackageId>
+    <Version>2.0.0</Version>
+    <Authors>CodingAgent Team</Authors>
+    <Company>JustAGameZA</Company>
+    <Description>Shared kernel with common contracts, domain primitives, and utilities for CodingAgent microservices</Description>
+    <PackageTags>coding-agent;shared-kernel;ddd;domain;microservices</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/JustAGameZA/coding-agent</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/JustAGameZA/coding-agent</PackageProjectUrl>
+    
+    <!-- XML Documentation -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+</Project>
