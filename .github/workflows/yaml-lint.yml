@@ -1,0 +1,35 @@
+name: YAML Lint
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - '.github/workflows/**/*.yml'
+      - '.github/workflows/**/*.yaml'
+      - 'deployment/docker-compose/**/*.yml'
+      - 'deployment/docker-compose/**/*.yaml'
+  push:
+    branches: [ master ]
+    paths:
+      - '.github/workflows/**/*.yml'
+      - '.github/workflows/**/*.yaml'
+      - 'deployment/docker-compose/**/*.yml'
+      - 'deployment/docker-compose/**/*.yaml'
+
+jobs:
+  yamllint:
+    name: Run yamllint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true  # start non-blocking; tighten later if desired
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run yamllint (workflows and compose)
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: |
+            .github/workflows
+            deployment/docker-compose
+          format: github

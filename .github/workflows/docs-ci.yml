@@ -7,7 +7,7 @@ on:
       - '.github/**'
       - 'docs/**'
   push:
-    branches: [ main ]
+    branches: [ master ]
     paths:
       - '**/*.md'
       - '.github/**'
@@ -24,6 +24,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-20-npm-cache
+          restore-keys: |
+            ${{ runner.os }}-node-20-
       - name: Run markdownlint-cli2
         run: npx -y markdownlint-cli2 "**/*.md" "#node_modules"
 
@@ -36,6 +43,6 @@ jobs:
       - name: lychee link check
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --verbose --no-progress --no-cache "**/*.md"
+          args: --base . --verbose --no-progress "**/*.md"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
