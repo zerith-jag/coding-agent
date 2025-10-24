@@ -38,17 +38,17 @@ graph TB
     Gateway --> Browser[Browser Service]
     Gateway --> CICD[CI/CD Monitor]
     Gateway --> Dashboard[Dashboard BFF]
-    
+
     Orch --> ML[ML Classifier - Python]
-    
+
     Chat --> RabbitMQ[(RabbitMQ)]
     Orch --> RabbitMQ
     GitHub --> RabbitMQ
-    
+
     Chat --> Postgres[(PostgreSQL)]
     Orch --> Postgres
     GitHub --> Postgres
-    
+
     Chat --> Redis[(Redis Cache)]
     Orch --> Redis
 ```
@@ -116,7 +116,7 @@ cd coding-agent
 
 ### Development Roadmap
 
-**Current Status**: ✅ Architecture Design Complete  
+**Current Status**: ✅ Architecture Design Complete
 **Next Phase**: Phase 0 - POC Implementation (Week 2)
 
 | Phase | Timeline | Status |
