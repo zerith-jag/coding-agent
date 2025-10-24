@@ -1,0 +1,185 @@
+version: '3.8'
+
+services:
+  # Infrastructure Services
+  postgres:
+    image: postgres:16-alpine
+    container_name: coding-agent-postgres
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev123
+      POSTGRES_DB: coding_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d coding_agent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - coding-agent-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: coding-agent-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - coding-agent-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: coding-agent-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: dev
+      RABBITMQ_DEFAULT_PASS: dev123
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - coding-agent-network
+
+  # Observability Stack
+  seq:
+    image: datalust/seq:latest
+    container_name: coding-agent-seq
+    environment:
+      ACCEPT_EULA: Y
+    ports:
+      - "5341:80"
+    volumes:
+      - seq_data:/data
+    networks:
+      - coding-agent-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: coding-agent-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - coding-agent-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: coding-agent-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./observability/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - coding-agent-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: coding-agent-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - coding-agent-network
+
+  # Application Services (POC)
+  gateway:
+    build:
+      context: ../../src/Gateway
+      dockerfile: Dockerfile.dev
+    container_name: coding-agent-gateway
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+      - ReverseProxy__Clusters__chat__Destinations__destination1__Address=http://chat-service:5001
+      - ConnectionStrings__Redis=redis:6379
+      - Seq__ServerUrl=http://seq:80
+      - Seq__ApiKey=
+      - OpenTelemetry__JaegerEndpoint=http://jaeger:4317
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      chat-service:
+        condition: service_started
+    networks:
+      - coding-agent-network
+    profiles:
+      - full
+
+  chat-service:
+    build:
+      context: ../../src/Services/Chat
+      dockerfile: Dockerfile.dev
+    container_name: coding-agent-chat
+    ports:
+      - "5001:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5001
+      - ConnectionStrings__ChatDb=Host=postgres;Database=coding_agent;Username=dev;Password=dev123;Port=5432
+      - ConnectionStrings__Redis=redis:6379
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=dev
+      - RabbitMQ__Password=dev123
+      - Seq__ServerUrl=http://seq:80
+      - Seq__ApiKey=
+      - OpenTelemetry__JaegerEndpoint=http://jaeger:4317
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - coding-agent-network
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  seq_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  coding-agent-network:
+    driver: bridge

@@ -131,6 +131,14 @@ Thumbs.db
 coverage/
 *.cover
 .hypothesis/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# k6 load test results
+tests/LoadTests/*.json
+tests/LoadTests/results/
 
 # ============================================
 # RabbitMQ / Redis / Infrastructure

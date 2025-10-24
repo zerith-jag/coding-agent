@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'coding-agent-monitor'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:5000']
+    metrics_path: '/metrics'
+
+  - job_name: 'chat-service'
+    static_configs:
+      - targets: ['chat-service:5001']
+    metrics_path: '/metrics'

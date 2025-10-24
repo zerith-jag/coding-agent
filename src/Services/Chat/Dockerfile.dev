@@ -1,0 +1,32 @@
+# Placeholder Dockerfile for Chat Service POC
+# This will be replaced with actual implementation in Phase 2
+
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS base
+WORKDIR /app
+EXPOSE 5001
+
+FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
+WORKDIR /src
+
+# Copy SharedKernel (when it exists)
+# COPY ["SharedKernel/CodingAgent.SharedKernel/CodingAgent.SharedKernel.csproj", "SharedKernel/CodingAgent.SharedKernel/"]
+
+# Copy Chat Service project (to be created)
+# COPY ["Services/Chat/CodingAgent.Services.Chat/CodingAgent.Services.Chat.csproj", "Services/Chat/CodingAgent.Services.Chat/"]
+# RUN dotnet restore "Services/Chat/CodingAgent.Services.Chat/CodingAgent.Services.Chat.csproj"
+
+# Build
+# COPY . .
+# WORKDIR "/src/Services/Chat/CodingAgent.Services.Chat"
+# RUN dotnet build "CodingAgent.Services.Chat.csproj" -c Release -o /app/build
+
+FROM build AS publish
+# RUN dotnet publish "CodingAgent.Services.Chat.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+# COPY --from=publish /app/publish .
+
+# Temporary placeholder entrypoint for POC validation
+# This demonstrates the container structure before actual service implementation
+ENTRYPOINT ["sh", "-c", "echo 'Chat service placeholder - awaiting implementation' && tail -f /dev/null"]
