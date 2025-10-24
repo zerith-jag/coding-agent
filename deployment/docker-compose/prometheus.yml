@@ -59,7 +59,9 @@ scrape_configs:
       - targets: ['rabbitmq:15692']
         labels:
           service: 'rabbitmq'
-    # Note: RabbitMQ prometheus plugin needs to be enabled
+    # Note: The RabbitMQ Prometheus plugin must be enabled for metrics to be available.
+    # To enable, run: rabbitmq-plugins enable rabbitmq_prometheus
+    # See: https://www.rabbitmq.com/prometheus.html for details.
 
   # ==========================================
   # API Gateway (YARP)
