@@ -26,54 +26,46 @@
 ## Phase 0: Architecture & Planning (Weeks 1-2)
 
 ### Goal
-Complete architectural specifications and validate technical approach with proof-of-concept.
+Complete architectural specifications and validate technical approach.
 
 ### Week 1: Documentation & Design
 
 **Days 1-2: Current System Analysis**
+
 - ✅ Review existing codebase (CodingAgent.Core, Application, Infrastructure)
 - ✅ Document feature inventory (what must be migrated)
 - ✅ Identify pain points (tight coupling, deployment issues, scalability)
 - ✅ Extract reusable patterns (orchestration logic, ML classification)
+
 - **Deliverable**: `SYSTEM-ANALYSIS.md` with feature map and technical debt log
 
 **Days 3-4: Microservice Boundaries**
+
 - ✅ Define 8 microservices with DDD bounded contexts
 - ✅ Map current features to new services
 - ✅ Design service APIs (OpenAPI specs)
 - ✅ Define data ownership per service
+
 - **Deliverable**: `01-SERVICE-CATALOG.md` with detailed specifications
 
 **Day 5: SharedKernel Design**
+
 - ✅ Identify common domain primitives (Task, User, Result)
 - ✅ Design shared contracts (DTOs, events, interfaces)
 - ✅ Define versioning strategy (semantic versioning)
+
 - **Deliverable**: `CodingAgent.SharedKernel` project structure
 
-### Week 2: POC & Validation
+### Week 2: Service Scaffolding
 
-**Days 1-2: API Gateway POC**
-- [ ] Create new solution: `CodingAgent.Gateway`
-- [ ] Implement YARP reverse proxy
-- [ ] Add JWT authentication
-- [ ] Configure rate limiting
-- [ ] Setup OpenTelemetry tracing
-- **Deliverable**: Running gateway proxying to mock services
+**Days 1-5: Initial Service Setup**
 
-**Days 3-4: Chat Service POC**
-- [ ] Create `CodingAgent.Services.Chat` project
-- [ ] Implement PostgreSQL repository
-- [ ] Add SignalR hub for WebSocket
-- [ ] Integrate with Redis cache
-- [ ] Publish events to RabbitMQ
-- **Deliverable**: Chat service accepting messages via WebSocket
+- ✅ Create solution structure for all services
+- ✅ Setup project templates and conventions
+- ✅ Implement SharedKernel base types
+- ✅ Setup initial CI/CD workflows
 
-**Day 5: Integration Testing**
-- [ ] Test Gateway → Chat Service flow
-- [ ] Verify JWT propagation
-- [ ] Test SignalR connection through gateway
-- [ ] Measure latency (target: < 100ms p95)
-- **Deliverable**: POC validation report, go/no-go decision
+- **Deliverable**: All service projects scaffolded and building
 
 ---
 
