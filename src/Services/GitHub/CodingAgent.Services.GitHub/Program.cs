@@ -6,15 +6,16 @@ using OpenTelemetry.Trace;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Octokit GitHubClient
-var githubToken = builder.Configuration["GitHub:Token"] ?? throw new InvalidOperationException("GitHub token not configured");
+var githubToken = builder.Configuration["GitHub:Token"];
 var productHeaderValue = new ProductHeaderValue("CodingAgent", "2.0.0");
 
 builder.Services.AddSingleton<IGitHubClient>(sp =>
 {
-    var client = new GitHubClient(productHeaderValue)
+    var client = new GitHubClient(productHeaderValue);
+    if (!string.IsNullOrEmpty(githubToken))
     {
-        Credentials = new Credentials(githubToken)
-    };
+        client.Credentials = new Credentials(githubToken);
+    }
     return client;
 });
 
