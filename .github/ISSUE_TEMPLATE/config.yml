@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Quick Start Guide
+    url: https://github.com/JustAGameZA/coding-agent-v2/tree/main/docs/QUICK-START.md
+    about: Read this first to understand the project structure and next steps.
+  - name: 📖 Architecture Docs Index
+    url: https://github.com/JustAGameZA/coding-agent-v2/tree/main/docs/README.md
+    about: Explore the architecture and roadmap documentation.
+  - name: 🤖 Copilot Instructions
+    url: https://github.com/JustAGameZA/coding-agent-v2/tree/main/.github/COPILOT.md
+    about: How to use GitHub Copilot effectively in this repo.

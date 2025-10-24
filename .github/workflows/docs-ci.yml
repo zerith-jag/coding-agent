@@ -1,0 +1,41 @@
+name: Docs CI
+
+on:
+  pull_request:
+    paths:
+      - '**/*.md'
+      - '.github/**'
+      - 'docs/**'
+  push:
+    branches: [ main ]
+    paths:
+      - '**/*.md'
+      - '.github/**'
+      - 'docs/**'
+
+jobs:
+  markdownlint:
+    name: Markdownlint
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run markdownlint-cli2
+        run: npx -y markdownlint-cli2 "**/*.md" "#node_modules"
+
+  link-check:
+    name: Link Checker
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: lychee link check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --verbose --no-progress --no-cache "**/*.md"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
