@@ -49,6 +49,22 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+// CORS configuration
+var allowedOrigins = builder.Configuration.GetSection("Frontend:Origins").Get<string[]>()
+    ?? new[] { "http://localhost:4200" };
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendCors", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyMethod()
+              .WithHeaders("Content-Type", "Authorization", "X-Requested-With")
+              .WithExposedHeaders("X-Correlation-Id")
+              .AllowCredentials();
+    });
+});
+
 // Health checks (liveness/readiness)
 builder.Services
     .AddHealthChecks()
@@ -81,6 +97,9 @@ builder.Services
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
+
+// Apply CORS policy
+app.UseCors("FrontendCors");
 
 // Serilog request logging
 app.UseSerilogRequestLogging();
