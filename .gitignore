@@ -106,6 +106,7 @@ docker-compose.override.yml
 *.env
 appsettings.Development.json
 appsettings.Local.json
+.mcp.json
 
 # ============================================
 # IDEs & Editors
@@ -144,3 +145,5 @@ redis_data/
 .history/
 *.bak
 *.backup
+
+.fake
