@@ -120,10 +120,11 @@ Production-ready infrastructure: Gateway, Auth, Databases, Message Bus, Observab
 
 **Day 5: Rate Limiting & Throttling**
 
-- [ ] Per-user limits (1000 req/hour)
-- [ ] Per-IP limits (100 req/min)
+- ✅ Per-user limits (1000 req/hour)
+- ✅ Per-IP limits (100 req/min)
 - [ ] API key tier-based limits
-- [ ] Return `429 Too Many Requests` with `Retry-After`
+- ✅ Return `429 Too Many Requests` with `Retry-After`
+- ✅ Add rate limit headers to responses (X-RateLimit-*)
 
 - **Deliverable**: Load tests show rate limits enforced
 
