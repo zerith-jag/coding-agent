@@ -1,0 +1,170 @@
+# ============================================
+# Prometheus Configuration
+# Coding Agent - Microservices Platform
+# ============================================
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'coding-agent-prod'
+    environment: 'production'
+
+# Alertmanager configuration (optional, for future use)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Load rules once and periodically evaluate them
+# rule_files:
+#   - "alerts/*.yml"
+
+scrape_configs:
+  # ==========================================
+  # Prometheus self-monitoring
+  # ==========================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # ==========================================
+  # PostgreSQL Exporter
+  # ==========================================
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgres'
+    # Note: postgres-exporter service needs to be added if metrics are required
+
+  # ==========================================
+  # Redis Exporter
+  # ==========================================
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+    # Note: redis-exporter service needs to be added if metrics are required
+
+  # ==========================================
+  # RabbitMQ
+  # ==========================================
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+        labels:
+          service: 'rabbitmq'
+    # Note: The RabbitMQ Prometheus plugin must be enabled for metrics to be available.
+    # To enable, run: rabbitmq-plugins enable rabbitmq_prometheus
+    # See: https://www.rabbitmq.com/prometheus.html for details.
+
+  # ==========================================
+  # API Gateway (YARP)
+  # ==========================================
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:5000']
+        labels:
+          service: 'gateway'
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+  # ==========================================
+  # Chat Service
+  # ==========================================
+  - job_name: 'chat-service'
+    static_configs:
+      - targets: ['chat-service:5001']
+        labels:
+          service: 'chat'
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+  # ==========================================
+  # Orchestration Service
+  # ==========================================
+  - job_name: 'orchestration-service'
+    static_configs:
+      - targets: ['orchestration-service:5002']
+        labels:
+          service: 'orchestration'
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+  # ==========================================
+  # ML Classifier Service
+  # ==========================================
+  - job_name: 'ml-classifier-service'
+    static_configs:
+      - targets: ['ml-classifier-service:5003']
+        labels:
+          service: 'ml-classifier'
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+  # ==========================================
+  # GitHub Service
+  # ==========================================
+  - job_name: 'github-service'
+    static_configs:
+      - targets: ['github-service:5004']
+        labels:
+          service: 'github'
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+  # ==========================================
+  # Browser Service
+  # ==========================================
+  - job_name: 'browser-service'
+    static_configs:
+      - targets: ['browser-service:5005']
+        labels:
+          service: 'browser'
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+  # ==========================================
+  # CI/CD Monitor Service
+  # ==========================================
+  - job_name: 'cicd-monitor-service'
+    static_configs:
+      - targets: ['cicd-monitor-service:5006']
+        labels:
+          service: 'cicd-monitor'
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+  # ==========================================
+  # Dashboard Service (BFF)
+  # ==========================================
+  - job_name: 'dashboard-service'
+    static_configs:
+      - targets: ['dashboard-service:5007']
+        labels:
+          service: 'dashboard'
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+  # ==========================================
+  # Node Exporter (for host metrics)
+  # ==========================================
+  # - job_name: 'node-exporter'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+  #       labels:
+  #         service: 'node-exporter'
+
+  # ==========================================
+  # cAdvisor (for container metrics)
+  # ==========================================
+  # - job_name: 'cadvisor'
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']
+  #       labels:
+  #         service: 'cadvisor'
