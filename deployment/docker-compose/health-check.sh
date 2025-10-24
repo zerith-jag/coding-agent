@@ -65,7 +65,7 @@ check_postgres() {
 
 # Function to check Redis
 check_redis() {
-    if docker exec coding-agent-redis redis-cli -a devPassword123! PING 2>&1 | grep -q "PONG"; then
+    if docker exec coding-agent-redis redis-cli -a "${REDIS_PASSWORD:-devPassword123!}" PING 2>&1 | grep -q "PONG"; then
         echo -e "${GREEN}✓${NC} Redis: connection successful"
         return 0
     else
