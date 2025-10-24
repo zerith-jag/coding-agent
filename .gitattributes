@@ -1,10 +1,19 @@
 # Auto-normalize line endings (LF) for all text files
 * text=auto eol=lf
 
+# Exclude Python virtual environments from line ending normalization
+.venv/** -text
+*/.venv/** -text
+
 # Specific overrides for Windows-specific files (keep CRLF)
 *.cmd text eol=crlf
 *.bat text eol=crlf
 *.ps1 text eol=crlf
+
+# Activate scripts in venv should keep their native endings
+*.venv/Scripts/Activate.ps1 text eol=crlf
+*.venv/Scripts/activate.bat text eol=crlf
+*.venv/Scripts/deactivate.bat text eol=crlf
 
 # Binary files
 *.dll binary
