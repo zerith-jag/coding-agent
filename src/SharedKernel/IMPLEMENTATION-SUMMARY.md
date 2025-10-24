@@ -28,6 +28,8 @@ Successfully implemented the SharedKernel NuGet package for the CodingAgent micr
 - ✅ `ExecutionStrategy.cs` - Enum with 4 execution strategies:
   - SingleShot, Iterative, MultiAgent, HybridExecution
 
+**Note on Enums as Value Objects**: In this implementation, TaskType, TaskComplexity, and ExecutionStrategy are implemented as simple .NET enums. While enums are not traditional value objects, they serve a similar purpose in DDD by representing immutable values. If richer behavior is needed in the future, these can be converted to proper value object classes inheriting from ValueObject base class.
+
 ### 4. Domain Events
 - ✅ `IDomainEvent.cs` - Base interface for all domain events
 - ✅ `TaskCreatedEvent.cs` - Event when a task is created
@@ -132,10 +134,10 @@ src/SharedKernel/
 │   │   │   ├── TaskCompletedEvent.cs
 │   │   │   └── TaskCreatedEvent.cs
 │   │   └── ValueObjects/
-│   │       ├── ExecutionStrategy.cs
-│   │       ├── TaskComplexity.cs
-│   │       ├── TaskType.cs
-│   │       └── ValueObject.cs
+│   │       ├── ExecutionStrategy.cs      # Enum-based value object
+│   │       ├── TaskComplexity.cs         # Enum-based value object
+│   │       ├── TaskType.cs               # Enum-based value object
+│   │       └── ValueObject.cs            # Base class for value objects
 │   ├── Exceptions/
 │   │   ├── DomainException.cs
 │   │   ├── NotFoundException.cs
@@ -157,6 +159,10 @@ src/SharedKernel/
     │   ├── ResultTests.cs
     │   └── ValidationErrorTests.cs
     └── CodingAgent.SharedKernel.Tests.csproj
+
+Note: The Contracts directory structure (DTOs, Requests, Responses) was created but not populated
+in this initial implementation. These will be added as services are implemented and common 
+contracts emerge.
 ```
 
 ## Test Results
