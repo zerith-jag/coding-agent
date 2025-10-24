@@ -4,13 +4,16 @@ This service exposes structured logs, distributed tracing, metrics, and health e
 
 ## Logging
 
-- Serilog is enabled with console sink and enrichers for environment and thread id.
+- Serilog is configured via `appsettings.json` with multiple sinks.
+- Default sinks: Console (for local development) and Seq (for centralized logging).
 - Request logging middleware is enabled.
 - Each request is enriched with a `CorrelationId` property.
 
-Configuration (optional):
+Configuration:
 
-- Provide `Serilog` section in `appsettings.json` to customize sinks (e.g., Seq).
+- Edit the `Serilog` section in `appsettings.json` to customize sinks, minimum levels, and enrichers.
+- Seq endpoint defaults to `http://localhost:5341` (override via configuration or environment variables).
+- Console sink uses a structured output template with timestamp, level, message, properties, and exceptions.
 
 ## Tracing (OpenTelemetry)
 

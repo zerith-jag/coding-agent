@@ -21,7 +21,6 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .Enrich.WithEnvironmentName()
     .Enrich.WithThreadId()
-    .WriteTo.Console()
     .CreateLogger();
 
 builder.Host.UseSerilog();
