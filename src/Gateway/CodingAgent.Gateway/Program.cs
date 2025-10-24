@@ -16,6 +16,9 @@ using Polly;
 using Polly.CircuitBreaker;
 using Polly.Extensions.Http;
 using Polly.Timeout;
+using StackExchange.Redis;
+using System.Net;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -148,6 +151,20 @@ builder.Services.AddHttpClient(string.Empty)
             }))
     .SetHandlerLifetime(TimeSpan.FromMinutes(5));
 
+// Redis connection for distributed rate limiting
+var redisConnectionString = builder.Configuration["Redis:Connection"] ?? "localhost:6379";
+ConnectionMultiplexer? redis;
+try
+{
+    redis = await ConnectionMultiplexer.ConnectAsync(redisConnectionString);
+    Log.Information("Connected to Redis for rate limiting at {RedisEndpoint}", redisConnectionString);
+}
+catch (Exception ex)
+{
+    Log.Warning(ex, "Redis unavailable at {RedisEndpoint}. Rate limiting will fallback to allow-all.", redisConnectionString);
+    redis = null;
+}
+
 var app = builder.Build();
 
 // Apply CORS policy
@@ -177,6 +194,112 @@ app.Use(async (context, next) =>
 
 // Add authentication and authorization middleware
 app.UseAuthentication();
+
+// Rate limiting middleware (per-IP and per-user via Redis counters)
+app.Use(async (context, next) =>
+{
+    // Exempt health endpoints
+    var path = context.Request.Path.Value ?? string.Empty;
+    if (path.StartsWith("/health", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
+
+    // If Redis not available, skip limiting
+    if (redis is null || !redis.IsConnected)
+    {
+        await next();
+        return;
+    }
+
+    var db = redis.GetDatabase();
+    var now = DateTimeOffset.UtcNow;
+
+    // Resolve client IP (prefer X-Forwarded-For if present)
+    string clientIp = context.Request.Headers.TryGetValue("X-Forwarded-For", out var fwd)
+        ? fwd.ToString().Split(',')[0].Trim()
+        : (context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+
+    // Resolve user id from claims when authenticated
+    string? userId = null;
+    if (context.User?.Identity?.IsAuthenticated == true)
+    {
+        userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                 ?? context.User.FindFirst("sub")?.Value
+                 ?? context.User.FindFirst("uid")?.Value;
+    }
+
+    // IP rate limit: 100 req/min
+    var ipWindowKey = now.ToString("yyyyMMddHHmm");
+    var ipKey = $"rl:ip:{clientIp}:{ipWindowKey}";
+    long ipCount = await db.StringIncrementAsync(ipKey);
+    if (ipCount == 1)
+    {
+        await db.KeyExpireAsync(ipKey, TimeSpan.FromMinutes(1) + TimeSpan.FromSeconds(5));
+    }
+    const int ipLimit = 100;
+    var ipRemaining = Math.Max(0, ipLimit - (int)ipCount);
+
+    // User rate limit: 1000 req/hour (only if authenticated)
+    const int userLimit = 1000;
+    long userCount = 0;
+    int userRemaining = userLimit;
+    if (!string.IsNullOrEmpty(userId))
+    {
+        var userWindowKey = now.ToString("yyyyMMddHH");
+        var userKey = $"rl:user:{userId}:{userWindowKey}";
+        userCount = await db.StringIncrementAsync(userKey);
+        if (userCount == 1)
+        {
+            await db.KeyExpireAsync(userKey, TimeSpan.FromHours(1) + TimeSpan.FromSeconds(10));
+        }
+        userRemaining = Math.Max(0, userLimit - (int)userCount);
+    }
+
+    // Select active policy for header reporting
+    var isAuthenticated = !string.IsNullOrEmpty(userId);
+    var activeLimit = isAuthenticated ? userLimit : ipLimit;
+    var activeRemaining = isAuthenticated ? userRemaining : ipRemaining;
+
+    // Add rate limit headers (also include IP-specific when authenticated)
+    context.Response.Headers["X-RateLimit-Limit"] = activeLimit.ToString();
+    context.Response.Headers["X-RateLimit-Remaining"] = activeRemaining.ToString();
+    context.Response.Headers["X-RateLimit-Limit-IP"] = ipLimit.ToString();
+    context.Response.Headers["X-RateLimit-Remaining-IP"] = ipRemaining.ToString();
+    if (isAuthenticated)
+    {
+        context.Response.Headers["X-RateLimit-Limit-User"] = userLimit.ToString();
+        context.Response.Headers["X-RateLimit-Remaining-User"] = userRemaining.ToString();
+    }
+
+    // Enforce limits (both IP and User if authenticated)
+    var ipExceeded = ipCount > ipLimit;
+    var userExceeded = isAuthenticated && userCount > userLimit;
+    if (ipExceeded || userExceeded)
+    {
+        // Compute Retry-After based on window end
+        TimeSpan retryAfter;
+        if (ipExceeded)
+        {
+            var minuteFloorUtc = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, TimeSpan.Zero);
+            retryAfter = minuteFloorUtc.AddMinutes(1) - now;
+        }
+        else
+        {
+            var hourFloorUtc = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero);
+            retryAfter = hourFloorUtc.AddHours(1) - now;
+        }
+
+        context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.Response.Headers["Retry-After"] = Math.Ceiling(retryAfter.TotalSeconds).ToString();
+        await context.Response.WriteAsync("Too Many Requests");
+        return;
+    }
+
+    await next();
+});
+
 app.UseAuthorization();
 
 // Expose Prometheus scraping endpoint
