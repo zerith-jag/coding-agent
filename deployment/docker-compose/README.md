@@ -599,9 +599,7 @@ docker system prune -a --volumes
 docker exec coding-agent-postgres psql -U codingagent -d codingagent -c "VACUUM ANALYZE;"
 
 # Check Redis memory
-docker exec coding-agent-redis redis-cli -a devPassword123! INFO memory
-```
-
+docker exec coding-agent-redis redis-cli -a "$REDIS_PASSWORD" INFO memory
 ## 📚 Additional Resources
 
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
