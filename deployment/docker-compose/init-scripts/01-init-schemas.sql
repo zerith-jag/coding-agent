@@ -1,0 +1,13 @@
+-- Create schemas for each service
+CREATE SCHEMA IF NOT EXISTS chat;
+CREATE SCHEMA IF NOT EXISTS orchestration;
+CREATE SCHEMA IF NOT EXISTS github;
+CREATE SCHEMA IF NOT EXISTS cicd;
+CREATE SCHEMA IF NOT EXISTS auth;
+
+-- Grant permissions
+GRANT ALL PRIVILEGES ON SCHEMA chat TO postgres;
+GRANT ALL PRIVILEGES ON SCHEMA orchestration TO postgres;
+GRANT ALL PRIVILEGES ON SCHEMA github TO postgres;
+GRANT ALL PRIVILEGES ON SCHEMA cicd TO postgres;
+GRANT ALL PRIVILEGES ON SCHEMA auth TO postgres;

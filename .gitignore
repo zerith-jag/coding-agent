@@ -99,8 +99,8 @@ docker-compose.override.yml
 
 ## Docker Compose Backups
 deployment/docker-compose/backups/
-*.sql
-*.rdb
+deployment/docker-compose/backups/*.sql
+deployment/docker-compose/backups/*.rdb
 
 ## Docker Volumes (if mounted locally)
 postgres_data/
