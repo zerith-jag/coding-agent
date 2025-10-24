@@ -24,6 +24,12 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.sln
+            **/*.csproj
+            **/Directory.Packages.props
+            **/packages.lock.json
 
       - name: Restore
         run: dotnet restore ./src/Gateway/CodingAgent.Gateway/CodingAgent.Gateway.csproj
