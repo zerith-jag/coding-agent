@@ -50,4 +50,4 @@ app.MapHealthChecks("/health").AllowAnonymous();
 // Map reverse proxy (requires authentication)
 app.MapReverseProxy().RequireAuthorization();
 
-await app.RunAsync();
+app.Run();

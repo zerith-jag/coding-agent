@@ -30,7 +30,7 @@ JWT Bearer authentication has been successfully implemented for the YARP Gateway
 2. **Anonymous Access for Health Endpoint**: `/health` endpoint is accessible without authentication for monitoring purposes
 3. **Protected API Routes**: Both `/api/chat/*` and `/api/orchestration/*` routes require authentication
 4. **Token Validation**: Validates issuer, audience, lifetime, and signing key
-5. **Header Propagation**: YARP automatically forwards the `Authorization` header to downstream services via the `RequestHeaderOriginalHost` transform
+5. **Header Propagation**: YARP automatically forwards the `Authorization` header (and most other headers) to downstream services by default
 
 ## Testing
 
