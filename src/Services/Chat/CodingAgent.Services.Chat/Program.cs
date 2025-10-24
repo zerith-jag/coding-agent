@@ -105,4 +105,25 @@ app.MapHealthChecks("/health");
 // Prometheus metrics endpoint
 app.MapPrometheusScrapingEndpoint();
 
-app.Run();
+// Ensure database schema exists (dev/test convenience)
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
+    try
+    {
+        await db.Database.EnsureCreatedAsync();
+    }
+    catch
+    {
+        // Ignore schema creation failures in scenarios where DB isn't reachable
+    }
+}
+
+await app.RunAsync();
+
+// Expose Program class for WebApplicationFactory in tests
+public partial class Program
+{
+    // Prevent instantiation
+    protected Program() { }
+}
