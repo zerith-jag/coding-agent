@@ -1,0 +1,73 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Gateway Service (future)
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:5000']
+    metrics_path: '/metrics'
+
+  # Chat Service (future)
+  - job_name: 'chat-service'
+    static_configs:
+      - targets: ['chat-service:5001']
+    metrics_path: '/metrics'
+
+  # Orchestration Service (future)
+  - job_name: 'orchestration-service'
+    static_configs:
+      - targets: ['orchestration-service:5002']
+    metrics_path: '/metrics'
+
+  # ML Classifier Service (future)
+  - job_name: 'ml-classifier'
+    static_configs:
+      - targets: ['ml-classifier:5003']
+    metrics_path: '/metrics'
+
+  # GitHub Service (future)
+  - job_name: 'github-service'
+    static_configs:
+      - targets: ['github-service:5004']
+    metrics_path: '/metrics'
+
+  # Browser Service (future)
+  - job_name: 'browser-service'
+    static_configs:
+      - targets: ['browser-service:5005']
+    metrics_path: '/metrics'
+
+  # CI/CD Monitor Service (future)
+  - job_name: 'cicd-monitor'
+    static_configs:
+      - targets: ['cicd-monitor:5006']
+    metrics_path: '/metrics'
+
+  # Dashboard Service (future)
+  - job_name: 'dashboard-service'
+    static_configs:
+      - targets: ['dashboard-service:5007']
+    metrics_path: '/metrics'
+
+  # Infrastructure services
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    # Note: postgres-exporter not included in base compose, add when needed
+
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    # Note: redis-exporter not included in base compose, add when needed
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+    # Note: RabbitMQ Prometheus plugin needs to be enabled

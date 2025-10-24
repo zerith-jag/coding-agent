@@ -1,0 +1,19 @@
+version: '3.9'
+
+services:
+  postgres:
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev123
+    ports:
+      - "5432:5432"
+
+  redis:
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    environment:
+      RABBITMQ_DEFAULT_USER: dev
+      RABBITMQ_DEFAULT_PASS: dev123

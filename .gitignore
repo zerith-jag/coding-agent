@@ -97,13 +97,25 @@ htmlcov/
 # ============================================
 docker-compose.override.yml
 
+## Docker Compose Backups
+deployment/docker-compose/backups/
+*.sql
+*.rdb
+
+## Docker Volumes (if mounted locally)
+postgres_data/
+grafana_data/
+prometheus_data/
+seq_data/
+
 # ============================================
 # Environment & Configuration
 # ============================================
 .env
 .env.local
 .env.*.local
-*.env
+# Keep .env.example for templates
+!.env.example
 appsettings.Development.json
 appsettings.Local.json
 
