@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Primitives;
 using HealthChecks.UI.Client;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -89,7 +90,6 @@ app.UseSerilogRequestLogging();
 app.Use(async (context, next) =>
 {
     const string HeaderName = "X-Correlation-Id";
-    var correlationId = context.Request.Headers[HeaderName].ToString();
     if (!context.Request.Headers.TryGetValue(HeaderName, out var value) || StringValues.IsNullOrEmpty(value))
     {
         value = Guid.NewGuid().ToString();
