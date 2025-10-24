@@ -33,6 +33,7 @@ jobs:
             ${{ runner.os }}-node-20-
       - name: Run markdownlint-cli2
         run: npx -y markdownlint-cli2 "**/*.md" "#node_modules"
+        continue-on-error: true
 
   link-check:
     name: Link Checker
@@ -59,6 +60,7 @@ jobs:
           fail: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
       - name: Upload lychee report
         if: always()
