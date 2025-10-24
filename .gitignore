@@ -107,6 +107,10 @@ docker-compose.override.yml
 appsettings.Development.json
 appsettings.Local.json
 
+# Docker Compose local files
+deployment/docker-compose/.env
+deployment/docker-compose/seq-data/
+
 # ============================================
 # IDEs & Editors
 # ============================================
