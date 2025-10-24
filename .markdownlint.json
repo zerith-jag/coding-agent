@@ -1,8 +1,11 @@
 {
   "default": true,
   "MD013": false,
+  "MD022": false,
+  "MD024": false,
+  "MD032": false,
   "MD033": { "allowed_elements": ["details", "summary", "img", "br"] },
-  "MD041": false,
-  "MD024": { "allow_different_nesting": true },
-  "MD034": false
+  "MD034": false,
+  "MD036": false,
+  "MD041": false
 }
