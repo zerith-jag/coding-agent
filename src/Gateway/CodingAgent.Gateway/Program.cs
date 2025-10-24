@@ -96,12 +96,11 @@ app.Use(async (context, next) =>
         context.Request.Headers[HeaderName] = correlationId; // ensure downstream (YARP) forwards it
     }
 
-    context.Response.Headers[HeaderName] = correlationId;
-
-    // Enrich current Activity and Serilog scope
-    Activity.Current?.SetTag("correlation.id", correlationId);
     using (LogContext.PushProperty("CorrelationId", correlationId))
     {
+        context.Response.Headers[HeaderName] = correlationId;
+        // Enrich current Activity and Serilog scope
+        Activity.Current?.SetTag("correlation.id", correlationId);
         await next.Invoke();
     }
 });
