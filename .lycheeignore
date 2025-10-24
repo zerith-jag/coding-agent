@@ -1,0 +1,7 @@
+# Ignore local/dev hosts and in-cluster service names
+^https?://localhost(:\d+)?/
+^http://127\.0\.0\.1(:\d+)?/
+^https?://(chat-service|orchestration-service|ml-classifier-service|browser-service|github-service|cicd-monitor-service|dashboard-service)([:/]|$)
+
+# Ignore mailto links
+^mailto:
