@@ -1,3 +1,7 @@
+using CodingAgent.Services.Chat.Domain.Entities;
+using CodingAgent.Services.Chat.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
 namespace CodingAgent.Services.Chat.Api.Endpoints;
 
 /// <summary>
@@ -30,43 +34,73 @@ public static class ConversationEndpoints
             .Produces(StatusCodes.Status404NotFound);
     }
 
-    private static IResult GetConversations(ILogger<Program> logger)
+    private static async Task<IResult> GetConversations(ChatDbContext db, ILogger<Program> logger, CancellationToken ct)
     {
         logger.LogInformation("Getting conversations");
-        
-        // Stub implementation - returns empty list
-        return Results.Ok(new List<ConversationDto>());
+        var items = await db.Conversations
+            .OrderByDescending(c => c.UpdatedAt)
+            .Take(100)
+            .Select(c => new ConversationDto
+            {
+                Id = c.Id,
+                Title = c.Title,
+                CreatedAt = c.CreatedAt,
+                UpdatedAt = c.UpdatedAt
+            })
+            .ToListAsync(ct);
+
+        return Results.Ok(items);
     }
 
-    private static IResult GetConversation(Guid id, ILogger<Program> logger)
+    private static async Task<IResult> GetConversation(Guid id, ChatDbContext db, ILogger<Program> logger, CancellationToken ct)
     {
         logger.LogInformation("Getting conversation {ConversationId}", id);
-        
-        // Stub implementation - returns 404
-        return Results.NotFound();
+        var entity = await db.Conversations.FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (entity is null)
+        {
+            return Results.NotFound();
+        }
+
+        var dto = new ConversationDto
+        {
+            Id = entity.Id,
+            Title = entity.Title,
+            CreatedAt = entity.CreatedAt,
+            UpdatedAt = entity.UpdatedAt
+        };
+        return Results.Ok(dto);
     }
 
-    private static IResult CreateConversation(CreateConversationRequest request, ILogger<Program> logger)
+    private static async Task<IResult> CreateConversation(CreateConversationRequest request, ChatDbContext db, ILogger<Program> logger, CancellationToken ct)
     {
         logger.LogInformation("Creating conversation: {Title}", request.Title);
-        
-        // Stub implementation - returns created conversation
-        var conversation = new ConversationDto
+
+        var userId = Guid.NewGuid(); // TODO: replace with authenticated user when auth is wired
+        var entity = new Conversation(userId, request.Title);
+        db.Conversations.Add(entity);
+        await db.SaveChangesAsync(ct);
+
+        var dto = new ConversationDto
         {
-            Id = Guid.NewGuid(),
-            Title = request.Title,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            Id = entity.Id,
+            Title = entity.Title,
+            CreatedAt = entity.CreatedAt,
+            UpdatedAt = entity.UpdatedAt
         };
-        
-        return Results.Created($"/conversations/{conversation.Id}", conversation);
+
+        return Results.Created($"/conversations/{dto.Id}", dto);
     }
 
-    private static IResult DeleteConversation(Guid id, ILogger<Program> logger)
+    private static async Task<IResult> DeleteConversation(Guid id, ChatDbContext db, ILogger<Program> logger, CancellationToken ct)
     {
         logger.LogInformation("Deleting conversation {ConversationId}", id);
-        
-        // Stub implementation
+        var entity = await db.Conversations.FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (entity is null)
+        {
+            return Results.NotFound();
+        }
+        db.Conversations.Remove(entity);
+        await db.SaveChangesAsync(ct);
         return Results.NoContent();
     }
 }
