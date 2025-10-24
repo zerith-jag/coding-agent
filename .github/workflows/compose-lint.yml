@@ -1,0 +1,38 @@
+name: Compose Config Lint
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'deployment/docker-compose/**'
+      - '.github/workflows/compose-lint.yml'
+  push:
+    branches: [ master ]
+    paths:
+      - 'deployment/docker-compose/**'
+      - '.github/workflows/compose-lint.yml'
+
+jobs:
+  lint:
+    name: docker compose config -q
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Docker and Compose availability
+        run: |
+          docker --version
+          docker compose version
+        continue-on-error: true
+
+      - name: Validate docker-compose config
+        if: ${{ hashFiles('deployment/docker-compose/docker-compose.yml') != '' }}
+        run: |
+          docker compose -f deployment/docker-compose/docker-compose.yml config -q
+
+      - name: Skip (no compose file found)
+        if: ${{ hashFiles('deployment/docker-compose/docker-compose.yml') == '' }}
+        run: |
+          echo "No compose file at deployment/docker-compose/docker-compose.yml; skipping lint."
