@@ -1,0 +1,64 @@
+<Project>
+  <PropertyGroup>
+    <!-- .NET SDK Configuration -->
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- Build Configuration -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>CS1591</NoWarn> <!-- Missing XML comment warnings -->
+
+    <!-- Assembly Configuration -->
+    <Company>CodingAgent</Company>
+    <Product>CodingAgent Platform</Product>
+    <Copyright>Copyright © 2025 CodingAgent</Copyright>
+    <Version>2.0.0</Version>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
+
+    <!-- Deterministic Builds -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Code Analysis -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+
+    <!-- Output Configuration -->
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- Package Configuration -->
+    <PackageProjectUrl>https://github.com/JustAGameZA/coding-agent</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/JustAGameZA/coding-agent.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Authors>CodingAgent Team</Authors>
+    <Description>CodingAgent Microservices Platform</Description>
+  </PropertyGroup>
+
+  <!-- Common Package References for All Projects -->
+  <!-- Note: Individual services have their own package references -->
+  <!-- Add truly shared packages here if needed in the future -->
+
+  <!-- Test Project Settings -->
+  <!-- Note: Test projects manage their own package references -->
+  <!-- Add truly shared test utilities here if needed -->
+
+  <!-- Source Link for Debugging -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="9.0.0" PrivateAssets="All"/>
+  </ItemGroup>
+
+</Project>

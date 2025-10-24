@@ -33,7 +33,8 @@ var app = builder.Build();
 app.MapHealthChecks("/health");
 
 // Ping endpoint
-app.MapGet("/ping", () => Results.Ok(new { 
+app.MapGet("/ping", () => Results.Ok(new
+{
     service = "BrowserService",
     status = "healthy",
     version = "2.0.0",
@@ -47,3 +48,6 @@ app.MapGet("/ping", () => Results.Ok(new {
 app.MapPrometheusScrapingEndpoint();
 
 app.Run();
+
+// Make Program accessible to test projects
+public partial class Program { }
