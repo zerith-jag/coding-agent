@@ -106,6 +106,7 @@ docker-compose.override.yml
 *.env
 appsettings.Development.json
 appsettings.Local.json
+.mcp.json
 
 # Docker Compose local files
 deployment/docker-compose/.env
@@ -148,3 +149,5 @@ redis_data/
 .history/
 *.bak
 *.backup
+
+.fake
