@@ -151,3 +151,6 @@ redis_data/
 *.backup
 
 .fake
+# NuGet packages
+nupkgs/
+*.nupkg
