@@ -93,6 +93,7 @@ app.Use(async (context, next) =>
     if (string.IsNullOrWhiteSpace(correlationId))
     {
         correlationId = Guid.NewGuid().ToString();
+        context.Request.Headers[HeaderName] = correlationId; // ensure downstream (YARP) forwards it
     }
 
     context.Response.Headers[HeaderName] = correlationId;
