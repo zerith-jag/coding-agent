@@ -12,6 +12,10 @@ using Serilog;
 using Serilog.Context;
 using System.Diagnostics;
 using System.Text;
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Extensions.Http;
+using Polly.Timeout;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -95,6 +99,54 @@ builder.Services.AddOpenTelemetry()
 builder.Services
     .AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+
+// Configure default HTTP client with Polly resilience policies
+// YARP uses HttpClient internally, so these policies apply to proxied requests
+builder.Services.AddHttpClient(string.Empty)
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1),
+        MaxConnectionsPerServer = 100
+    })
+    .AddTransientHttpErrorPolicy(policyBuilder =>
+        policyBuilder.WaitAndRetryAsync(
+            retryCount: 3,
+            sleepDurationProvider: retryAttempt =>
+            {
+                // Exponential backoff with jitter: 2^attempt seconds + random 0-1000ms
+                var baseDelay = TimeSpan.FromSeconds(Math.Pow(2, retryAttempt));
+                var jitter = TimeSpan.FromMilliseconds(Random.Shared.Next(0, 1000));
+                return baseDelay + jitter;
+            },
+            onRetry: (outcome, timespan, retryAttempt) =>
+            {
+                Log.Warning(
+                    "HTTP retry {RetryAttempt}/3. Waiting {RetryDelayMs}ms. Reason: {Reason}",
+                    retryAttempt,
+                    (int)timespan.TotalMilliseconds,
+                    outcome.Exception?.Message ?? outcome.Result?.StatusCode.ToString() ?? "Unknown");
+            }))
+    .AddTransientHttpErrorPolicy(policyBuilder =>
+        policyBuilder.CircuitBreakerAsync(
+            handledEventsAllowedBeforeBreaking: 5,
+            durationOfBreak: TimeSpan.FromSeconds(30),
+            onBreak: (outcome, breakDelay) =>
+            {
+                Log.Error(
+                    "Circuit breaker OPENED for {BreakDurationSeconds}s. Reason: {Reason}",
+                    (int)breakDelay.TotalSeconds,
+                    outcome.Exception?.Message ?? outcome.Result?.StatusCode.ToString() ?? "Unknown");
+            },
+            onReset: () =>
+            {
+                Log.Information("Circuit breaker RESET. Normal operation resumed.");
+            },
+            onHalfOpen: () =>
+            {
+                Log.Information("Circuit breaker HALF-OPEN. Testing downstream health.");
+            }))
+    .SetHandlerLifetime(TimeSpan.FromMinutes(5));
 
 var app = builder.Build();
 
