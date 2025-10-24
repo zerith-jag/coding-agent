@@ -90,11 +90,11 @@ app.Use(async (context, next) =>
 {
     const string HeaderName = "X-Correlation-Id";
     var correlationId = context.Request.Headers[HeaderName].ToString();
-    if (string.IsNullOrWhiteSpace(correlationId))
+    if (!context.Request.Headers.TryGetValue(HeaderName, out var value) || StringValues.IsNullOrEmpty(value))
     {
-        correlationId = Guid.NewGuid().ToString();
-        context.Request.Headers[HeaderName] = correlationId; // ensure downstream (YARP) forwards it
+        value = Guid.NewGuid().ToString();
     }
+    var correlationId = value.ToString();
 
     using (LogContext.PushProperty("CorrelationId", correlationId))
     {
