@@ -1,6 +1,4 @@
-<todos title="Todos" rule="Review steps frequently throughout the conversation and DO NOT stop between steps unless they explicitly require it.">
-- No current todos
-</todos>
+<!-- Todos: Review steps frequently throughout the conversation and DO NOT stop between steps unless they explicitly require it. -->
 
 # Copilot Instructions - Coding Agent v2.0 Microservices
 
