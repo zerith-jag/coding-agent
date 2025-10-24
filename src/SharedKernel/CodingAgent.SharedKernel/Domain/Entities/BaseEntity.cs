@@ -56,16 +56,24 @@ public abstract class BaseEntity
     public override bool Equals(object? obj)
     {
         if (obj is not BaseEntity other)
+        {
             return false;
+        }
 
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
 
         if (GetType() != other.GetType())
+        {
             return false;
+        }
 
         if (Id == Guid.Empty || other.Id == Guid.Empty)
+        {
             return false;
+        }
 
         return Id == other.Id;
     }
@@ -84,10 +92,14 @@ public abstract class BaseEntity
     public static bool operator ==(BaseEntity? left, BaseEntity? right)
     {
         if (left is null && right is null)
+        {
             return true;
+        }
 
         if (left is null || right is null)
+        {
             return false;
+        }
 
         return left.Equals(right);
     }

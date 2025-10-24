@@ -10,7 +10,7 @@ public class Conversation
     public string Title { get; private set; } = string.Empty;
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
-    
+
     private readonly List<Message> _messages = new();
     public IReadOnlyCollection<Message> Messages => _messages.AsReadOnly();
 
@@ -35,8 +35,10 @@ public class Conversation
     public void UpdateTitle(string newTitle)
     {
         if (string.IsNullOrWhiteSpace(newTitle))
+        {
             throw new ArgumentException("Title cannot be empty", nameof(newTitle));
-        
+        }
+
         Title = newTitle;
         UpdatedAt = DateTime.UtcNow;
     }
