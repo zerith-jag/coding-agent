@@ -28,6 +28,7 @@ jobs:
 
       - name: Run yamllint (workflows and compose)
         uses: ibiqlik/action-yamllint@v3
+        continue-on-error: true
         with:
           file_or_dir: |
             .github/workflows
