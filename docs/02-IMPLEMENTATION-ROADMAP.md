@@ -168,7 +168,7 @@ Implement the three most critical services: Chat, Orchestration, ML Classifier.
 - [ ] Implement all endpoints (POST /conversations, GET /messages, etc.)
 - [ ] Add pagination (page size: 50)
 - [ ] Implement search (full-text via PostgreSQL)
-- [ ] Write integration tests (Testcontainers)
+- [x] Write integration tests (Testcontainers) — initial coverage for conversations with PostgreSQL via Testcontainers and automatic in-memory fallback when Docker is unavailable
 - **Deliverable**: Chat REST API passing all tests
 
 **Days 6-8: SignalR WebSocket**
