@@ -1,11 +1,11 @@
 using CodingAgent.Services.Orchestration.Api.Endpoints;
 using CodingAgent.Services.Orchestration.Infrastructure.Persistence;
+using CodingAgent.SharedKernel.Infrastructure;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,33 +25,19 @@ builder.Services.AddDbContext<OrchestrationDbContext>(options =>
 });
 
 // Health checks
-builder.Services.AddHealthChecks()
+var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddDbContextCheck<OrchestrationDbContext>();
 
 if (!string.IsNullOrWhiteSpace(connectionString))
 {
-    builder.Services.AddHealthChecks()
-        .AddNpgSql(
-            connectionString,
-            name: "postgresql",
-            tags: new[] { "db", "ready" });
+    healthChecksBuilder.AddNpgSql(
+        connectionString,
+        name: "postgresql",
+        tags: new[] { "db", "ready" });
 }
 
-// RabbitMQ health check if configured (avoid embedding credentials in URI)
-var hcRabbitHost = builder.Configuration["RabbitMQ:Host"];
-var hcRabbitUser = builder.Configuration["RabbitMQ:Username"];
-var hcRabbitPass = builder.Configuration["RabbitMQ:Password"];
-var rabbitConfigured = !string.IsNullOrWhiteSpace(hcRabbitHost) && !string.IsNullOrWhiteSpace(hcRabbitUser) && !string.IsNullOrWhiteSpace(hcRabbitPass);
-if (rabbitConfigured)
-{
-    builder.Services.AddHealthChecks().AddRabbitMQ(_ => new ConnectionFactory
-    {
-        HostName = hcRabbitHost,
-        UserName = hcRabbitUser,
-        Password = hcRabbitPass,
-        Port = 5672
-    }, name: "rabbitmq");
-}
+// RabbitMQ health check if configured
+healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
 
 // OpenTelemetry configuration
 var serviceName = "CodingAgent.Services.Orchestration";
@@ -84,32 +70,7 @@ builder.Services.AddMassTransit(x =>
 
     x.UsingRabbitMq((context, cfg) =>
     {
-        var cfgHostRaw = builder.Configuration["RabbitMQ:Host"];
-        var cfgUserRaw = builder.Configuration["RabbitMQ:Username"];
-        var cfgPassRaw = builder.Configuration["RabbitMQ:Password"];
-        var isProd = builder.Environment.IsProduction();
-
-        // Default only in non-production
-        var host = isProd ? cfgHostRaw : (cfgHostRaw ?? "localhost");
-        var username = isProd ? cfgUserRaw : (cfgUserRaw ?? "guest");
-        var password = isProd ? cfgPassRaw : (cfgPassRaw ?? "guest");
-
-        if (isProd && (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)))
-        {
-            throw new InvalidOperationException("RabbitMQ configuration (Host/Username/Password) is required in Production");
-        }
-
-        if (!string.IsNullOrWhiteSpace(host))
-        {
-            cfg.Host(host!, h =>
-            {
-                if (!string.IsNullOrWhiteSpace(username))
-                    h.Username(username!);
-                if (!string.IsNullOrWhiteSpace(password))
-                    h.Password(password!);
-            });
-        }
-
+        cfg.ConfigureRabbitMQHost(builder.Configuration, builder.Environment);
         cfg.ConfigureEndpoints(context);
     });
 });
@@ -157,22 +118,9 @@ app.MapGet("/", () => Results.Ok(new
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<OrchestrationDbContext>();
-    try
-    {
-        if (db.Database.IsRelational())
-        {
-            await db.Database.MigrateAsync();
-        }
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Failed to apply OrchestrationDb migrations on startup");
-        // Keep the app running for dev/test; in production, fail fast
-        if (app.Environment.IsProduction())
-        {
-            throw;
-        }
-    }
+    await db.MigrateDatabaseIfRelationalAsync(
+        app.Logger,
+        isProduction: app.Environment.IsProduction());
 }
 
 await app.RunAsync();

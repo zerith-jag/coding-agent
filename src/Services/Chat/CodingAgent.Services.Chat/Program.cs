@@ -1,12 +1,12 @@
 using CodingAgent.Services.Chat.Api.Endpoints;
 using CodingAgent.Services.Chat.Api.Hubs;
 using CodingAgent.Services.Chat.Infrastructure.Persistence;
+using CodingAgent.SharedKernel.Infrastructure;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,62 +52,23 @@ builder.Services.AddMassTransit(x =>
 
     x.UsingRabbitMq((context, cfg) =>
     {
-        var cfgHostRaw = builder.Configuration["RabbitMQ:Host"];
-        var cfgUserRaw = builder.Configuration["RabbitMQ:Username"];
-        var cfgPassRaw = builder.Configuration["RabbitMQ:Password"];
-        var isProd = builder.Environment.IsProduction();
-
-        // Default only in non-production
-        var host = isProd ? cfgHostRaw : (cfgHostRaw ?? "localhost");
-        var username = isProd ? cfgUserRaw : (cfgUserRaw ?? "guest");
-        var password = isProd ? cfgPassRaw : (cfgPassRaw ?? "guest");
-
-        if (isProd && (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)))
-        {
-            throw new InvalidOperationException("RabbitMQ configuration (Host/Username/Password) is required in Production");
-        }
-
-        if (!string.IsNullOrWhiteSpace(host))
-        {
-            cfg.Host(host!, h =>
-            {
-                if (!string.IsNullOrWhiteSpace(username))
-                    h.Username(username!);
-                if (!string.IsNullOrWhiteSpace(password))
-                    h.Password(password!);
-            });
-        }
-
+        cfg.ConfigureRabbitMQHost(builder.Configuration, builder.Environment);
         cfg.ConfigureEndpoints(context);
     });
 });
 
 // Health Checks
-builder.Services.AddHealthChecks()
+var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddDbContextCheck<ChatDbContext>();
 
 // Add Redis health check if configured
 if (!string.IsNullOrEmpty(redisConnection))
 {
-    builder.Services.AddHealthChecks()
-        .AddRedis(redisConnection, name: "redis");
+    healthChecksBuilder.AddRedis(redisConnection, name: "redis");
 }
 
-// RabbitMQ health check if credentials explicitly provided in configuration
-var hcRabbitHost = builder.Configuration["RabbitMQ:Host"];
-var hcRabbitUser = builder.Configuration["RabbitMQ:Username"];
-var hcRabbitPass = builder.Configuration["RabbitMQ:Password"];
-var rabbitConfigured = !string.IsNullOrWhiteSpace(hcRabbitHost) && !string.IsNullOrWhiteSpace(hcRabbitUser) && !string.IsNullOrWhiteSpace(hcRabbitPass);
-if (rabbitConfigured)
-{
-    builder.Services.AddHealthChecks().AddRabbitMQ(_ => new ConnectionFactory
-    {
-        HostName = hcRabbitHost,
-        UserName = hcRabbitUser,
-        Password = hcRabbitPass,
-        Port = 5672
-    }, name: "rabbitmq");
-}
+// RabbitMQ health check if configured
+healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
 
 // OpenTelemetry - Tracing and Metrics
 var serviceName = "chat-service";
@@ -172,18 +133,9 @@ app.MapPrometheusScrapingEndpoint();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
-    try
-    {
-        if (db.Database.IsRelational())
-        {
-            await db.Database.MigrateAsync();
-        }
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Failed to apply ChatDb migrations on startup");
-        // Keep the app running for dev/test; for production, consider rethrowing or failing fast
-    }
+    await db.MigrateDatabaseIfRelationalAsync(
+        app.Logger,
+        isProduction: app.Environment.IsProduction());
 }
 
 await app.RunAsync();
