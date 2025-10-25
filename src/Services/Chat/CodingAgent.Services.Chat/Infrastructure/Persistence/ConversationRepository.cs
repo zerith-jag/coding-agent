@@ -58,6 +58,13 @@ public class ConversationRepository : IConversationRepository
         if (isPostgres)
         {
             // PostgreSQL full-text search
+            // Validate query length to prevent abuse
+            if (query.Length > 200)
+            {
+                _logger.LogWarning("Search query exceeds maximum length of 200 characters");
+                return Enumerable.Empty<Conversation>();
+            }
+            
             // Sanitize input by removing special PostgreSQL full-text search operators
             var sanitizedQuery = query
                 .Replace("&", " ")
@@ -68,10 +75,15 @@ public class ConversationRepository : IConversationRepository
                 .Replace(":", " ")
                 .Trim();
             
-            var searchTerms = sanitizedQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var searchTerms = sanitizedQuery
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(term => !string.IsNullOrWhiteSpace(term) && term.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-'))
+                .ToArray();
+            
             if (searchTerms.Length == 0)
             {
                 // If query becomes empty after sanitization, return empty results
+                _logger.LogDebug("Search query contains no valid terms after sanitization");
                 return Enumerable.Empty<Conversation>();
             }
             

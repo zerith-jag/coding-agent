@@ -58,32 +58,33 @@ public static class ConversationEndpoints
         ILogger<Program> logger,
         CancellationToken ct)
     {
+        IEnumerable<Conversation> conversations;
+        
         if (!string.IsNullOrWhiteSpace(q))
         {
             logger.LogInformation("Searching conversations with query: {Query}", q);
-            var searchResults = await repository.SearchAsync(q, ct);
-            var searchItems = searchResults.Select(c => new ConversationDto
-            {
-                Id = c.Id,
-                Title = c.Title,
-                CreatedAt = c.CreatedAt,
-                UpdatedAt = c.UpdatedAt
-            }).ToList();
-            return Results.Ok(searchItems);
+            conversations = await repository.SearchAsync(q, ct);
+        }
+        else
+        {
+            logger.LogInformation("Getting conversations");
+            // TODO: Filter by authenticated user when auth is wired
+            conversations = await repository.GetAllAsync(ct);
         }
 
-        logger.LogInformation("Getting conversations");
-        // TODO: Filter by authenticated user when auth is wired
-        var conversations = await repository.GetAllAsync(ct);
-        var items = conversations.Select(c => new ConversationDto
+        var items = MapConversationsToDtos(conversations);
+        return Results.Ok(items);
+    }
+    
+    private static List<ConversationDto> MapConversationsToDtos(IEnumerable<Conversation> conversations)
+    {
+        return conversations.Select(c => new ConversationDto
         {
             Id = c.Id,
             Title = c.Title,
             CreatedAt = c.CreatedAt,
             UpdatedAt = c.UpdatedAt
         }).ToList();
-
-        return Results.Ok(items);
     }
 
     private static async Task<IResult> GetConversation(Guid id, IConversationRepository repository, ILogger<Program> logger, CancellationToken ct)

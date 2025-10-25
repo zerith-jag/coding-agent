@@ -1,3 +1,10 @@
+<todos title="Address PR #113 review comments and merge" rule="Review steps frequently throughout the conversation and DO NOT stop between steps unless they explicitly require it.">
+- [x] add-query-length-validation: Add max length check (200 chars) and validate sanitized terms contain only word characters in SearchAsync 🔴
+- [x] extract-dto-mapping: Move conversation-to-DTO mapping logic from GetConversations into a private helper method to eliminate duplication 🔴
+- [x] run-tests-pr113: Execute Chat service tests to ensure review fixes don't break existing functionality 🔴
+- [-] merge-pr113: Commit changes, push to branch, and merge PR into master 🔴
+</todos>
+
 <!-- Todos: Review steps frequently throughout the conversation and DO NOT stop between steps unless they explicitly require it. -->
 
 # Copilot Instructions - Coding Agent v2.0 Microservices
