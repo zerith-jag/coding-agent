@@ -1,6 +1,7 @@
 using CodingAgent.Services.Chat.Api.Endpoints;
 using CodingAgent.Services.Chat.Api.Hubs;
 using CodingAgent.Services.Chat.Infrastructure.Persistence;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -12,13 +13,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ChatDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("ChatDb");
-    if (!string.IsNullOrEmpty(connectionString))
+    var useRelational = !string.IsNullOrWhiteSpace(connectionString) && builder.Environment.IsProduction();
+
+    if (useRelational)
     {
-        options.UseNpgsql(connectionString);
+        options.UseNpgsql(connectionString!);
     }
     else
     {
-        // Use in-memory for development/testing if no connection string
+        // Default to in-memory for development/testing
         options.UseInMemoryDatabase("ChatDb");
     }
 });
@@ -36,6 +39,28 @@ if (!string.IsNullOrEmpty(redisConnection))
 // SignalR
 builder.Services.AddSignalR();
 
+// MassTransit + RabbitMQ
+builder.Services.AddMassTransit(x =>
+{
+    x.SetKebabCaseEndpointNameFormatter();
+    x.AddConsumers(typeof(Program).Assembly);
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var host = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
+        var username = builder.Configuration["RabbitMQ:Username"] ?? "guest";
+        var password = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+
+        cfg.Host(host, h =>
+        {
+            h.Username(username);
+            h.Password(password);
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
+
 // Health Checks
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ChatDbContext>();
@@ -45,6 +70,16 @@ if (!string.IsNullOrEmpty(redisConnection))
 {
     builder.Services.AddHealthChecks()
         .AddRedis(redisConnection, name: "redis");
+}
+
+// RabbitMQ health check if configured
+var rabbitHost = builder.Configuration["RabbitMQ:Host"];
+var rabbitUser = builder.Configuration["RabbitMQ:Username"];
+var rabbitPass = builder.Configuration["RabbitMQ:Password"];
+if (!string.IsNullOrWhiteSpace(rabbitHost) && !string.IsNullOrWhiteSpace(rabbitUser) && !string.IsNullOrWhiteSpace(rabbitPass))
+{
+    var amqp = $"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672";
+    builder.Services.AddHealthChecks().AddRabbitMQ(amqp, name: "rabbitmq");
 }
 
 // OpenTelemetry - Tracing and Metrics
@@ -95,6 +130,7 @@ app.MapGet("/ping", () => Results.Ok(new { status = "healthy", service = "chat-s
     .Produces(StatusCodes.Status200OK);
 
 app.MapConversationEndpoints();
+app.MapEventTestEndpoints();
 
 // SignalR hub
 app.MapHub<ChatHub>("/hubs/chat");
@@ -105,17 +141,21 @@ app.MapHealthChecks("/health");
 // Prometheus metrics endpoint
 app.MapPrometheusScrapingEndpoint();
 
-// Ensure database schema exists (dev/test convenience)
+// Apply EF Core migrations on startup when using a relational provider
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
     try
     {
-        await db.Database.EnsureCreatedAsync();
+        if (db.Database.IsRelational())
+        {
+            await db.Database.MigrateAsync();
+        }
     }
-    catch
+    catch (Exception ex)
     {
-        // Ignore schema creation failures in scenarios where DB isn't reachable
+        app.Logger.LogError(ex, "Failed to apply ChatDb migrations on startup");
+        // Keep the app running for dev/test; for production, consider rethrowing or failing fast
     }
 }
 

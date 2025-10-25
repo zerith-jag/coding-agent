@@ -1,3 +1,4 @@
+using MassTransit;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -26,8 +27,40 @@ builder.Services.AddOpenTelemetry()
         .AddHttpClientInstrumentation()
         .AddPrometheusExporter());
 
+// MassTransit + RabbitMQ
+builder.Services.AddMassTransit(x =>
+{
+    x.SetKebabCaseEndpointNameFormatter();
+    x.AddConsumers(typeof(Program).Assembly);
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var host = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
+        var username = builder.Configuration["RabbitMQ:Username"] ?? "guest";
+        var password = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+
+        cfg.Host(host, h =>
+        {
+            h.Username(username);
+            h.Password(password);
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
+
 // Add health checks
 builder.Services.AddHealthChecks();
+
+// RabbitMQ health check if configured
+var rabbitHost = builder.Configuration["RabbitMQ:Host"];
+var rabbitUser = builder.Configuration["RabbitMQ:Username"];
+var rabbitPass = builder.Configuration["RabbitMQ:Password"];
+if (!string.IsNullOrWhiteSpace(rabbitHost) && !string.IsNullOrWhiteSpace(rabbitUser) && !string.IsNullOrWhiteSpace(rabbitPass))
+{
+    var amqp = $"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672";
+    builder.Services.AddHealthChecks().AddRabbitMQ(amqp, name: "rabbitmq");
+}
 
 var app = builder.Build();
 
@@ -48,4 +81,4 @@ app.MapGet("/ping", () => Results.Ok(new
 // Map Prometheus metrics endpoint
 app.MapPrometheusScrapingEndpoint();
 
-app.Run();
+await app.RunAsync();

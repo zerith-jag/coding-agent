@@ -41,6 +41,9 @@ public sealed class ChatServiceFixture : IAsyncLifetime
         Factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                // Ensure non-production environment for tests so the app uses in-memory DB
+                builder.UseEnvironment("Development");
+
                 builder.ConfigureAppConfiguration((ctx, config) =>
                 {
                     if (!string.IsNullOrEmpty(connectionString))

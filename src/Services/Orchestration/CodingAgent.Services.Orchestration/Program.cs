@@ -1,5 +1,6 @@
 using CodingAgent.Services.Orchestration.Api.Endpoints;
 using CodingAgent.Services.Orchestration.Infrastructure.Persistence;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -21,6 +22,16 @@ builder.Services.AddHealthChecks()
     connectionString,
         name: "postgresql",
         tags: new[] { "db", "ready" });
+
+// RabbitMQ health check if configured
+var rabbitHost = builder.Configuration["RabbitMQ:Host"];
+var rabbitUser = builder.Configuration["RabbitMQ:Username"];
+var rabbitPass = builder.Configuration["RabbitMQ:Password"];
+if (!string.IsNullOrWhiteSpace(rabbitHost) && !string.IsNullOrWhiteSpace(rabbitUser) && !string.IsNullOrWhiteSpace(rabbitPass))
+{
+    var amqp = $"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672";
+    builder.Services.AddHealthChecks().AddRabbitMQ(amqp, name: "rabbitmq");
+}
 
 // OpenTelemetry configuration
 var serviceName = "CodingAgent.Services.Orchestration";
@@ -44,6 +55,28 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddPrometheusExporter());
+
+// MassTransit + RabbitMQ
+builder.Services.AddMassTransit(x =>
+{
+    x.SetKebabCaseEndpointNameFormatter();
+    x.AddConsumers(typeof(Program).Assembly);
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var host = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
+        var username = builder.Configuration["RabbitMQ:Username"] ?? "guest";
+        var password = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+
+        cfg.Host(host, h =>
+        {
+            h.Username(username);
+            h.Password(password);
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 // API documentation
 builder.Services.AddEndpointsApiExplorer();
@@ -72,6 +105,7 @@ if (app.Environment.IsDevelopment())
 app.MapHealthChecks("/health");
 app.MapPrometheusScrapingEndpoint("/metrics");
 app.MapTaskEndpoints();
+app.MapEventTestEndpoints();
 
 // Root endpoint
 app.MapGet("/", () => Results.Ok(new
