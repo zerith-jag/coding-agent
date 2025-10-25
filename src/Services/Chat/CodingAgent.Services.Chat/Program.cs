@@ -1,6 +1,8 @@
 using CodingAgent.Services.Chat.Api.Endpoints;
 using CodingAgent.Services.Chat.Api.Hubs;
 using CodingAgent.Services.Chat.Infrastructure.Persistence;
+using CodingAgent.SharedKernel.Infrastructure;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -8,17 +10,23 @@ using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database configuration (stub - no actual connection yet)
+// Database configuration
 builder.Services.AddDbContext<ChatDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("ChatDb");
     if (!string.IsNullOrWhiteSpace(connectionString))
     {
+        // Use PostgreSQL when a connection string is explicitly provided
         options.UseNpgsql(connectionString);
+    }
+    else if (builder.Environment.IsProduction())
+    {
+        // In Production, require explicit configuration
+        throw new InvalidOperationException("ChatDb connection string is required in Production");
     }
     else
     {
-        // Use in-memory for development/testing if no connection string
+        // Default to in-memory for development/testing when not configured
         options.UseInMemoryDatabase("ChatDb");
     }
 });
@@ -36,16 +44,31 @@ if (!string.IsNullOrEmpty(redisConnection))
 // SignalR
 builder.Services.AddSignalR();
 
+// MassTransit + RabbitMQ
+builder.Services.AddMassTransit(x =>
+{
+    x.SetKebabCaseEndpointNameFormatter();
+    x.AddConsumers(typeof(Program).Assembly);
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.ConfigureRabbitMQHost(builder.Configuration, builder.Environment);
+        cfg.ConfigureEndpoints(context);
+    });
+});
+
 // Health Checks
-builder.Services.AddHealthChecks()
+var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddDbContextCheck<ChatDbContext>();
 
 // Add Redis health check if configured
 if (!string.IsNullOrEmpty(redisConnection))
 {
-    builder.Services.AddHealthChecks()
-        .AddRedis(redisConnection, name: "redis");
+    healthChecksBuilder.AddRedis(redisConnection, name: "redis");
 }
+
+// RabbitMQ health check if configured
+healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
 
 // OpenTelemetry - Tracing and Metrics
 var serviceName = "chat-service";
@@ -95,6 +118,7 @@ app.MapGet("/ping", () => Results.Ok(new { status = "healthy", service = "chat-s
     .Produces(StatusCodes.Status200OK);
 
 app.MapConversationEndpoints();
+app.MapEventTestEndpoints();
 
 // SignalR hub
 app.MapHub<ChatHub>("/hubs/chat");
@@ -109,18 +133,9 @@ app.MapPrometheusScrapingEndpoint();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
-    try
-    {
-        if (db.Database.IsRelational())
-        {
-            await db.Database.MigrateAsync();
-        }
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Failed to apply ChatDb migrations on startup");
-        // Keep the app running for dev/test; for production, consider rethrowing or failing fast
-    }
+    await db.MigrateDatabaseIfRelationalAsync(
+        app.Logger,
+        isProduction: app.Environment.IsProduction());
 }
 
 await app.RunAsync();

@@ -1,5 +1,7 @@
 using CodingAgent.Services.Orchestration.Api.Endpoints;
 using CodingAgent.Services.Orchestration.Infrastructure.Persistence;
+using CodingAgent.SharedKernel.Infrastructure;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -23,17 +25,19 @@ builder.Services.AddDbContext<OrchestrationDbContext>(options =>
 });
 
 // Health checks
-builder.Services.AddHealthChecks()
+var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddDbContextCheck<OrchestrationDbContext>();
 
 if (!string.IsNullOrWhiteSpace(connectionString))
 {
-    builder.Services.AddHealthChecks()
-        .AddNpgSql(
-            connectionString,
-            name: "postgresql",
-            tags: new[] { "db", "ready" });
+    healthChecksBuilder.AddNpgSql(
+        connectionString,
+        name: "postgresql",
+        tags: new[] { "db", "ready" });
 }
+
+// RabbitMQ health check if configured
+healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
 
 // OpenTelemetry configuration
 var serviceName = "CodingAgent.Services.Orchestration";
@@ -57,6 +61,19 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddPrometheusExporter());
+
+// MassTransit + RabbitMQ
+builder.Services.AddMassTransit(x =>
+{
+    x.SetKebabCaseEndpointNameFormatter();
+    x.AddConsumers(typeof(Program).Assembly);
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.ConfigureRabbitMQHost(builder.Configuration, builder.Environment);
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 // API documentation
 builder.Services.AddEndpointsApiExplorer();
@@ -85,6 +102,7 @@ if (app.Environment.IsDevelopment())
 app.MapHealthChecks("/health");
 app.MapPrometheusScrapingEndpoint("/metrics");
 app.MapTaskEndpoints();
+app.MapEventTestEndpoints();
 
 // Root endpoint
 app.MapGet("/", () => Results.Ok(new
@@ -100,18 +118,9 @@ app.MapGet("/", () => Results.Ok(new
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<OrchestrationDbContext>();
-    try
-    {
-        if (db.Database.IsRelational())
-        {
-            await db.Database.MigrateAsync();
-        }
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Failed to apply OrchestrationDb migrations on startup");
-        // Keep the app running for dev/test; for production, consider rethrowing or failing fast
-    }
+    await db.MigrateDatabaseIfRelationalAsync(
+        app.Logger,
+        isProduction: app.Environment.IsProduction());
 }
 
 await app.RunAsync();

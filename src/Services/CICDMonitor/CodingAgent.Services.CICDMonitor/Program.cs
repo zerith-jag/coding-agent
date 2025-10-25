@@ -1,3 +1,5 @@
+using CodingAgent.SharedKernel.Infrastructure;
+using MassTransit;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -26,8 +28,24 @@ builder.Services.AddOpenTelemetry()
         .AddHttpClientInstrumentation()
         .AddPrometheusExporter());
 
+// MassTransit with RabbitMQ
+builder.Services.AddMassTransit(x =>
+{
+    // TODO: Add consumers here when needed
+    // x.AddConsumer<MyConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.ConfigureRabbitMQHost(builder.Configuration, builder.Environment);
+        cfg.ConfigureEndpoints(context);
+    });
+});
+
 // Add health checks
-builder.Services.AddHealthChecks();
+var healthChecksBuilder = builder.Services.AddHealthChecks();
+
+// RabbitMQ health check if configured (avoid credentials in URI)
+healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
 
 var app = builder.Build();
 
@@ -48,4 +66,4 @@ app.MapGet("/ping", () => Results.Ok(new
 // Map Prometheus metrics endpoint
 app.MapPrometheusScrapingEndpoint();
 
-app.Run();
+await app.RunAsync();
