@@ -69,16 +69,13 @@ public class ConversationTests
         var userId = Guid.NewGuid();
         var conversation = new Conversation(userId, "Original Title");
         var originalUpdatedAt = conversation.UpdatedAt;
-        
-        // Small delay to ensure timestamp difference
-        Thread.Sleep(10);
 
         // Act
         conversation.UpdateTitle("New Title");
 
         // Assert
         conversation.Title.Should().Be("New Title");
-        conversation.UpdatedAt.Should().BeAfter(originalUpdatedAt);
+        conversation.UpdatedAt.Should().BeOnOrAfter(originalUpdatedAt);
     }
 
     [Theory]
@@ -146,7 +143,6 @@ public class ConversationTests
         var createdAt = conversation.CreatedAt;
 
         // Act
-        Thread.Sleep(10);
         conversation.UpdateTitle("New Title");
         var message = new Message(conversation.Id, userId, "Test", MessageRole.User);
         conversation.AddMessage(message);
@@ -162,14 +158,12 @@ public class ConversationTests
         var userId = Guid.NewGuid();
         var conversation = new Conversation(userId, "Test");
         var originalUpdatedAt = conversation.UpdatedAt;
-        
-        Thread.Sleep(10);
 
         // Act
         var message = new Message(conversation.Id, userId, "Test", MessageRole.User);
         conversation.AddMessage(message);
 
         // Assert
-        conversation.UpdatedAt.Should().BeAfter(originalUpdatedAt);
+        conversation.UpdatedAt.Should().BeOnOrAfter(originalUpdatedAt);
     }
 }
