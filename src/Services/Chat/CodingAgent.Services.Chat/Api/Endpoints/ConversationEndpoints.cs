@@ -18,26 +18,36 @@ public static class ConversationEndpoints
 
         group.MapGet("", GetConversations)
             .WithName("GetConversations")
+            .WithDescription("Retrieve all conversations ordered by most recently updated")
+            .WithSummary("List conversations")
             .Produces<List<ConversationDto>>();
 
         group.MapGet("{id:guid}", GetConversation)
             .WithName("GetConversation")
+            .WithDescription("Retrieve a specific conversation by its unique identifier")
+            .WithSummary("Get conversation by ID")
             .Produces<ConversationDto>()
             .Produces(StatusCodes.Status404NotFound);
 
         group.MapPost("", CreateConversation)
             .WithName("CreateConversation")
+            .WithDescription("Create a new conversation with the specified title. Title must be between 1 and 200 characters.")
+            .WithSummary("Create a new conversation")
             .Produces<ConversationDto>(StatusCodes.Status201Created)
             .ProducesValidationProblem();
 
         group.MapPut("{id:guid}", UpdateConversation)
             .WithName("UpdateConversation")
+            .WithDescription("Update the title of an existing conversation. Title must be between 1 and 200 characters.")
+            .WithSummary("Update conversation title")
             .Produces<ConversationDto>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound)
             .ProducesValidationProblem();
 
         group.MapDelete("{id:guid}", DeleteConversation)
             .WithName("DeleteConversation")
+            .WithDescription("Delete a conversation by its unique identifier")
+            .WithSummary("Delete conversation")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound);
     }
@@ -161,6 +171,10 @@ public static class ConversationEndpoints
 }
 
 // DTOs
+
+/// <summary>
+/// Conversation data transfer object
+/// </summary>
 public record ConversationDto
 {
     public Guid Id { get; init; }
@@ -169,9 +183,22 @@ public record ConversationDto
     public DateTime UpdatedAt { get; init; }
 }
 
+/// <summary>
+/// Request to create a new conversation
+/// </summary>
+/// <param name="Title">Conversation title (1-200 characters)</param>
 public record CreateConversationRequest(string Title);
 
+/// <summary>
+/// Request to update an existing conversation
+/// </summary>
+/// <param name="Title">New conversation title (1-200 characters)</param>
 public record UpdateConversationRequest(string Title);
 
+/// <summary>
+/// Request to create a message in a conversation
+/// </summary>
+/// <param name="ConversationId">The conversation identifier</param>
+/// <param name="Content">Message content (1-10,000 characters)</param>
 public record CreateMessageRequest(Guid ConversationId, string Content);
 
