@@ -1,6 +1,8 @@
 using CodingAgent.Services.Chat.Api.Endpoints;
 using CodingAgent.Services.Chat.Api.Hubs;
 using CodingAgent.Services.Chat.Domain.Repositories;
+using CodingAgent.Services.Chat.Domain.Services;
+using CodingAgent.Services.Chat.Infrastructure.Caching;
 using CodingAgent.Services.Chat.Infrastructure.Persistence;
 using CodingAgent.SharedKernel.Infrastructure;
 using FluentValidation;
@@ -9,6 +11,8 @@ using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using StackExchange.Redis;
+using System.Diagnostics.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,7 +48,20 @@ if (!string.IsNullOrEmpty(redisConnection))
     {
         options.Configuration = redisConnection;
     });
+
+    // Register Redis connection multiplexer for message caching
+    builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+        ConnectionMultiplexer.Connect(redisConnection));
 }
+
+// Register message cache service (accepts null connection when Redis is not configured)
+builder.Services.AddScoped<IMessageCacheService>(sp =>
+{
+    var redis = sp.GetService<IConnectionMultiplexer>();
+    var logger = sp.GetRequiredService<ILogger<MessageCacheService>>();
+    var meterFactory = sp.GetRequiredService<IMeterFactory>();
+    return new MessageCacheService(redis, logger, meterFactory);
+});
 
 // SignalR
 builder.Services.AddSignalR();
