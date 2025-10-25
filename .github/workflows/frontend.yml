@@ -1,0 +1,50 @@
+name: Frontend (Angular) CI
+
+on:
+  push:
+    paths:
+      - 'src/Frontend/coding-agent-dashboard/**'
+      - 'src/Services/Dashboard/**'
+      - 'src/Gateway/**'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    paths:
+      - 'src/Frontend/coding-agent-dashboard/**'
+      - 'src/Services/Dashboard/**'
+      - 'src/Gateway/**'
+      - 'package.json'
+      - 'package-lock.json'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/Frontend/coding-agent-dashboard
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: src/Frontend/coding-agent-dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Test
+        run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage --no-progress
+
+      - name: Build
+        run: npm run build -- --configuration=production

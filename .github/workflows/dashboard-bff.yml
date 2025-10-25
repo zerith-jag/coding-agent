@@ -1,0 +1,56 @@
+name: Dashboard BFF Service CI
+
+on:
+  push:
+    paths:
+      - 'src/Services/Dashboard/**'
+      - 'src/SharedKernel/**'
+      - 'CodingAgent.sln'
+      - 'Directory.Build.props'
+      - 'global.json'
+  pull_request:
+    paths:
+      - 'src/Services/Dashboard/**'
+      - 'src/SharedKernel/**'
+      - 'CodingAgent.sln'
+      - 'Directory.Build.props'
+      - 'global.json'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.100'
+          cache: true
+
+      - name: Restore
+        run: dotnet restore CodingAgent.sln
+
+      - name: Build
+        run: dotnet build CodingAgent.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test CodingAgent.sln -c Release --no-build --logger "trx;LogFileName=test_results.trx"
+
+      - name: Conditional Docker build
+        run: |
+          set -e
+          CTX=""
+          if [ -f src/Services/Dashboard/CodingAgent.Services.Dashboard/Dockerfile ]; then CTX=src/Services/Dashboard/CodingAgent.Services.Dashboard; fi
+          if [ -z "$CTX" ] && [ -f src/Services/Dashboard/Dockerfile ]; then CTX=src/Services/Dashboard; fi
+          if [ -n "$CTX" ]; then
+            echo "Dockerfile found in $CTX. Building image..."
+            docker build "$CTX" -t ghcr.io/${{ github.repository }}/dashboard-bff:${{ github.sha }}
+          else
+            echo "No Dockerfile found for Dashboard BFF. Skipping docker build."
+          fi
