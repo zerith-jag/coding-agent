@@ -6,6 +6,7 @@ using Xunit;
 namespace CodingAgent.Services.Chat.Tests.Integration;
 
 [Collection("ChatServiceCollection")]
+[Trait("Category", "Integration")]
 public class ConversationPaginationTests
 {
     private readonly ChatServiceFixture _fixture;
