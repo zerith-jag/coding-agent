@@ -1,3 +1,18 @@
+<todos title="PR #114 Review Comments Implementation" rule="Review steps frequently throughout the conversation and DO NOT stop between steps unless they explicitly require it.">
+- [x] fix-conversation-repository-message-hydration: Fix ConversationRepository.cs: Replace AddMessage() with direct assignment when hydrating cached messages to avoid bypassing entity business logic 🔴
+  _Copilot review comment: Using AddMessage() to populate cached messages bypasses the entity's business logic and may cause issues. The cached messages already have their IDs and timestamps set, but AddMessage() treats them as new messages._
+- [x] fix-message-ordering-inconsistency: Fix MessageCacheService.cs: Correct message ordering logic to use OrderBy().TakeLast() instead of OrderByDescending().Take() for consistent ascending timestamp storage 🔴
+  _Copilot review comment: Sorting messages by descending timestamp and taking 100 creates inconsistency with Redis sorted set storage (ascending scores). This affects retrieval order - SortedSetRangeByScoreAsync returns oldest-to-newest by default._
+- [x] add-enum-validation-messagedto: Fix MessageCacheService.cs MessageDto.ToEntity(): Replace Enum.Parse with Enum.TryParse and proper error handling for MessageRole deserialization 🟡
+  _Copilot review comment: Enum.Parse will throw an exception if the Role string is invalid. Should use Enum.TryParse with error handling to provide more helpful error messages rather than generic parsing exceptions._
+- [x] add-validation-fromcache-method: Add validation or documentation to Message.FromCache() method to explain why constructor validation is skipped and consider validating sentAt parameter 🟢
+  _Copilot review comment: FromCache method bypasses primary constructor which sets SentAt to DateTime.UtcNow. Should add validation for sentAt not being in future or comment explaining why validation is skipped._
+- [-] run-tests-after-fixes: Run all tests to ensure fixes don't break existing functionality 🔴
+  _Need to verify that fixes maintain test coverage and don't introduce regressions_
+- [ ] merge-pr-114: Merge PR #114 after all fixes are implemented and tests pass 🟡
+  _Final step to complete the Redis message caching implementation_
+</todos>
+
 <!-- Todos: Review steps frequently throughout the conversation and DO NOT stop between steps unless they explicitly require it. -->
 
 # Copilot Instructions - Coding Agent v2.0 Microservices

@@ -13,6 +13,7 @@ namespace CodingAgent.Services.Chat.Tests.Integration.Caching;
 /// <summary>
 /// Integration tests for MessageCacheService using Redis testcontainers
 /// </summary>
+[Trait("Category", "Integration")]
 public class MessageCacheServiceTests : IAsyncLifetime
 {
     private RedisContainer? _redisContainer;
