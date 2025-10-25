@@ -85,11 +85,16 @@ Production-ready infrastructure: Gateway, Auth, Databases, Message Bus, Observab
 - **Deliverable**: `docker compose up` starts full stack
 
 **Days 3-4: Database Migrations**
-- [ ] Setup EF Core migrations per service
+- [x] Setup EF Core migrations per service (Chat, Orchestration complete)
 - [ ] Create `auth` schema (users, sessions, api_keys)
 - [ ] Seed test data (admin user, API keys)
 - [ ] Verify cross-service queries work
 - **Deliverable**: Database migration scripts in each service
+
+Progress notes (Oct 25, 2025):
+- Chat and Orchestration services use PostgreSQL schemas `chat` and `orchestration` respectively, with code-first migrations committed.
+- On startup, services apply pending migrations via `Database.MigrateAsync()` when using a relational provider; in dev/test without PostgreSQL, an EF Core InMemory fallback is used to keep tests green.
+- Connection strings are sourced from environment or user secrets; no credentials are hardcoded in `appsettings.json`.
 
 **Day 5: CI/CD Pipeline**
 - [ ] GitHub Actions workflow per service

@@ -14,7 +14,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ChatDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("ChatDb");
-
     if (!string.IsNullOrWhiteSpace(connectionString))
     {
         // Use PostgreSQL when a connection string is explicitly provided

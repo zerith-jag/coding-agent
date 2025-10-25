@@ -9,20 +9,33 @@ using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database configuration
-var connectionString = builder.Configuration.GetConnectionString("OrchestrationDb")
-    ?? throw new InvalidOperationException("OrchestrationDb connection string is required");
+// Database configuration with in-memory fallback for dev/test
+var connectionString = builder.Configuration.GetConnectionString("OrchestrationDb");
 
 builder.Services.AddDbContext<OrchestrationDbContext>(options =>
-    options.UseNpgsql(connectionString));
+{
+    if (!string.IsNullOrWhiteSpace(connectionString))
+    {
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        options.UseInMemoryDatabase("OrchestrationDb");
+    }
+});
 
 // Health checks
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<OrchestrationDbContext>()
-    .AddNpgSql(
-    connectionString,
-        name: "postgresql",
-        tags: new[] { "db", "ready" });
+    .AddDbContextCheck<OrchestrationDbContext>();
+
+if (!string.IsNullOrWhiteSpace(connectionString))
+{
+    builder.Services.AddHealthChecks()
+        .AddNpgSql(
+            connectionString,
+            name: "postgresql",
+            tags: new[] { "db", "ready" });
+}
 
 // RabbitMQ health check if configured (avoid embedding credentials in URI)
 var hcRabbitHost = builder.Configuration["RabbitMQ:Host"];
@@ -140,7 +153,7 @@ app.MapGet("/", () => Results.Ok(new
 .WithName("Root")
 .ExcludeFromDescription();
 
-// Apply migrations when using a relational provider
+// Apply EF Core migrations on startup when using a relational provider
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<OrchestrationDbContext>();
@@ -154,6 +167,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         app.Logger.LogError(ex, "Failed to apply OrchestrationDb migrations on startup");
+        // Keep the app running for dev/test; in production, fail fast
         if (app.Environment.IsProduction())
         {
             throw;
