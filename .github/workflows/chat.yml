@@ -1,6 +1,7 @@
 name: Chat Service CI
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'src/Services/Chat/**'
@@ -30,8 +31,7 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.100'
-          cache: true
+          dotnet-version: '9.0.x'
 
       - name: Restore
         run: dotnet restore CodingAgent.sln

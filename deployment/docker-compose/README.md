@@ -306,23 +306,82 @@ deployment/docker-compose/grafana/provisioning/dashboards/
 **Features**:
 - OpenTelemetry compatible
 - OTLP gRPC and HTTP endpoints
-- Persistent storage (Badger DB)
+- In-memory storage (all-in-one deployment)
+- Distributed trace correlation with correlation IDs
 
 **URL**: http://localhost:16686
 
 **OTLP Endpoints**:
-- gRPC: `http://localhost:4317`
-- HTTP: `http://localhost:4318`
+- gRPC: `http://localhost:4317` (from host) or `http://jaeger:4317` (from containers)
+- HTTP: `http://localhost:4318` (from host) or `http://jaeger:4318` (from containers)
 
-**Usage in .NET**:
-```csharp
-builder.Services.AddOpenTelemetry()
-    .WithTracing(tracing => tracing
-        .AddOtlpExporter(options =>
-        {
-            options.Endpoint = new Uri("http://jaeger:4317");
-        }));
+**Usage in .NET Services**:
+
+All services are pre-configured to send traces to Jaeger via OTLP gRPC. The endpoint is configurable in `appsettings.json`:
+
+```json
+{
+  "OpenTelemetry": {
+    "Endpoint": "http://jaeger:4317"
+  }
+}
 ```
+
+Override at runtime with environment variables:
+```bash
+-e OpenTelemetry__Endpoint=http://jaeger:4317
+```
+
+**Verifying Traces**:
+
+1. **Quick verification using the provided script**:
+   ```bash
+   cd deployment/docker-compose
+   ./verify-jaeger.sh
+   ```
+
+2. **Manual verification steps**:
+
+   a. **Start all infrastructure services**:
+   ```bash
+   docker compose up -d
+   ```
+
+   b. **Wait for services to be healthy** (~30 seconds):
+   ```bash
+   docker compose ps
+   # All services should show "Up (healthy)"
+   ```
+
+   c. **Access Jaeger UI**: http://localhost:16686
+
+   d. **Generate test traces** by making requests to services:
+   ```bash
+   # Via Gateway (recommended - shows full trace)
+   curl http://localhost:5000/api/chat/ping
+   curl http://localhost:5000/api/orchestration/ping
+   
+   # Direct to services
+   curl http://localhost:5001/health  # Chat service
+   curl http://localhost:5002/health  # Orchestration service
+   ```
+
+   e. **View traces in Jaeger UI**:
+   - Select service from dropdown (e.g., "CodingAgent.Gateway")
+   - Click "Find Traces"
+   - Click on a trace to see the full span timeline
+   - Verify correlation IDs propagate across services (look for `X-Correlation-Id` tag)
+
+**Troubleshooting**:
+
+- **No traces appearing**: 
+  - Check service logs: `docker compose logs gateway chat orchestration`
+  - Verify Jaeger is healthy: `curl http://localhost:14269/`
+  - Ensure OpenTelemetry endpoint is configured correctly in service appsettings
+  
+- **Traces missing correlation**: 
+  - Verify Gateway is propagating correlation ID headers
+  - Check that downstream services are instrumented with ASP.NET Core instrumentation
 
 ### Seq Structured Logging
 
