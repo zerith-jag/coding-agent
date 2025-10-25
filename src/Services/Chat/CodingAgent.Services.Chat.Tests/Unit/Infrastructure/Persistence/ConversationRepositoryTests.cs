@@ -1,4 +1,5 @@
 using CodingAgent.Services.Chat.Domain.Entities;
+using CodingAgent.Services.Chat.Domain.Services;
 using CodingAgent.Services.Chat.Infrastructure.Persistence;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ public class ConversationRepositoryTests : IDisposable
     private readonly ChatDbContext _context;
     private readonly ConversationRepository _repository;
     private readonly Mock<ILogger<ConversationRepository>> _loggerMock;
+    private readonly Mock<IMessageCacheService> _cacheServiceMock;
 
     public ConversationRepositoryTests()
     {
@@ -23,7 +25,14 @@ public class ConversationRepositoryTests : IDisposable
 
         _context = new ChatDbContext(options);
         _loggerMock = new Mock<ILogger<ConversationRepository>>();
-        _repository = new ConversationRepository(_context, _loggerMock.Object);
+        _cacheServiceMock = new Mock<IMessageCacheService>();
+        
+        // Default cache behavior: return null (cache miss)
+        _cacheServiceMock
+            .Setup(x => x.GetMessagesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<Message>?)null);
+        
+        _repository = new ConversationRepository(_context, _loggerMock.Object, _cacheServiceMock.Object);
     }
 
     public void Dispose()

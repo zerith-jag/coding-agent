@@ -9,6 +9,7 @@ namespace CodingAgent.Services.Chat.Tests.Integration;
 /// Integration tests for validation behavior in conversation endpoints
 /// </summary>
 [Collection("ChatServiceCollection")]
+[Trait("Category", "Integration")]
 public class ConversationValidationTests
 {
     private readonly ChatServiceFixture _fixture;
