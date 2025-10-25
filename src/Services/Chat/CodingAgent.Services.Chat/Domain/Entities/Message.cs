@@ -24,6 +24,22 @@ public class Message
         Role = role;
         SentAt = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// Factory method to reconstruct a message from cached data
+    /// </summary>
+    public static Message FromCache(Guid id, Guid conversationId, Guid? userId, string content, MessageRole role, DateTime sentAt)
+    {
+        return new Message
+        {
+            Id = id,
+            ConversationId = conversationId,
+            UserId = userId,
+            Content = content,
+            Role = role,
+            SentAt = sentAt
+        };
+    }
 }
 
 public enum MessageRole
