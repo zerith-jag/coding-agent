@@ -86,24 +86,24 @@ public static class ConversationEndpoints
         var links = new List<string>();
 
         // First page link
-        links.Add($"<{baseUrl}?page=1&pageSize={pageSize}>; rel=\"first\"");
+        links.Add($"<{baseUrl}?page=1&pageSize={Uri.EscapeDataString(pageSize.ToString())}>; rel=\"first\"");
 
         // Last page link
         if (pagedResult.TotalPages > 0)
         {
-            links.Add($"<{baseUrl}?page={pagedResult.TotalPages}&pageSize={pageSize}>; rel=\"last\"");
+            links.Add($"<{baseUrl}?page={Uri.EscapeDataString(pagedResult.TotalPages.ToString())}&pageSize={Uri.EscapeDataString(pageSize.ToString())}>; rel=\"last\"");
         }
 
         // Previous page link
         if (pagedResult.HasPreviousPage)
         {
-            links.Add($"<{baseUrl}?page={pagedResult.PageNumber - 1}&pageSize={pageSize}>; rel=\"prev\"");
+            links.Add($"<{baseUrl}?page={Uri.EscapeDataString((pagedResult.PageNumber - 1).ToString())}&pageSize={Uri.EscapeDataString(pageSize.ToString())}>; rel=\"prev\"");
         }
 
         // Next page link
         if (pagedResult.HasNextPage)
         {
-            links.Add($"<{baseUrl}?page={pagedResult.PageNumber + 1}&pageSize={pageSize}>; rel=\"next\"");
+            links.Add($"<{baseUrl}?page={Uri.EscapeDataString((pagedResult.PageNumber + 1).ToString())}&pageSize={Uri.EscapeDataString(pageSize.ToString())}>; rel=\"next\"");
         }
 
         if (links.Any())
