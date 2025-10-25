@@ -17,8 +17,9 @@
 | Browser Service | 4,000 | 0.5 | Medium | Orchestration |
 | CI/CD Monitor | 5,000 | 0.5 | Medium | GitHub, Orchestration |
 | Dashboard Service | 3,000 | 0.5 | Low | All services (BFF) |
+| Ollama Service | 4,000 | 0.5 | Medium | Orchestration (LLM provider) |
 
-**Total Estimated LOC**: ~45,000 (down from 60,000 in monolith due to reduced coupling)
+**Total Estimated LOC**: ~49,000 (down from 60,000 in monolith due to reduced coupling)
 
 ---
 
@@ -45,6 +46,7 @@ Routes:
   /api/browser/**     → Browser Service
   /api/cicd/**        → CI/CD Monitor
   /api/dashboard/**   → Dashboard Service
+  /api/ollama/**      → Ollama Service (LLM provider)
 
 External Integration APIs (for VS Code, Continue, AI Toolkit):
   /api/generate       → Ollama-compatible text completion (streaming)
@@ -382,6 +384,26 @@ public record TaskFailedEvent(Guid TaskId, string Error);
       "Simple": "gpt-4o-mini",
       "Medium": "gpt-4o",
       "Complex": "gpt-4o + claude-3.5-sonnet"
+    },
+    "CloudApis": {
+      "OpenAI": {
+        "Enabled": true,
+        "ApiKey": "sk-...",
+        "MaxTokensPerMonth": 1000000,
+        "AlertThresholdPercent": 80
+      },
+      "Anthropic": {
+        "Enabled": false,
+        "ApiKey": "",
+        "MaxTokensPerMonth": 500000,
+        "AlertThresholdPercent": 80
+      }
+    },
+    "Ollama": {
+      "ServiceUrl": "http://ollama-service:5008",
+      "FallbackToCloudOnFailure": true,
+      "CircuitBreakerThreshold": 5,
+      "CircuitBreakerDurationSeconds": 30
     }
   }
 }
@@ -775,20 +797,548 @@ resources:
 
 ---
 
+## 9. Ollama Service
+
+### Responsibility
+Managed local LLM provider using Ollama. Provides cost-effective, on-premise inference for code generation, reducing reliance on external APIs (OpenAI, Anthropic). Acts as an intelligent router between hosted Ollama models and the orchestration service.
+
+### Technology Stack
+- **Framework**: .NET 9 Minimal APIs
+- **LLM Backend**: Ollama (Docker container)
+- **Database**: PostgreSQL (`ollama` schema) for model metadata, usage tracking
+- **Cache**: Redis (prompt cache, response cache for deterministic queries)
+- **Message Bus**: RabbitMQ (publish model usage events)
+
+### Domain Model
+
+```csharp
+public class OllamaModel
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; }              // e.g., "codellama:13b"
+    public string DisplayName { get; set; }       // e.g., "CodeLlama 13B"
+    public string Version { get; set; }           // Model version
+    public long SizeBytes { get; set; }
+    public ModelCapability Capability { get; set; } // CodeGen, Chat, Analysis
+    public ModelStatus Status { get; set; }       // Available, Downloading, Error
+    public DateTime PulledAt { get; set; }
+    public DateTime LastUsedAt { get; set; }
+    public ModelMetrics Metrics { get; set; }
+}
+
+public class ModelMetrics
+{
+    public int TotalRequests { get; set; }
+    public int SuccessfulRequests { get; set; }
+    public int FailedRequests { get; set; }
+    public double AverageLatencyMs { get; set; }
+    public long TotalTokensGenerated { get; set; }
+    public double AverageQualityScore { get; set; } // User feedback
+}
+
+public class OllamaRequest
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public Guid TaskId { get; set; }
+    public string ModelName { get; set; }
+    public string Prompt { get; set; }
+    public OllamaOptions Options { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public OllamaResponse? Response { get; set; }
+}
+
+public class OllamaOptions
+{
+    public double Temperature { get; set; } = 0.7;
+    public int NumPredict { get; set; } = 2000;
+    public int TopK { get; set; } = 40;
+    public double TopP { get; set; } = 0.9;
+    public int NumCtx { get; set; } = 4096;      // Context window
+    public string Stop { get; set; }             // Stop sequences
+}
+
+public class OllamaResponse
+{
+    public string ModelName { get; set; }
+    public string Response { get; set; }
+    public int PromptEvalCount { get; set; }     // Prompt tokens
+    public int EvalCount { get; set; }           // Generated tokens
+    public double EvalDuration { get; set; }     // Generation time (ns)
+    public bool Done { get; set; }
+    public string DoneReason { get; set; }       // "stop", "length", "error"
+}
+
+public enum ModelCapability
+{
+    CodeGeneration,
+    ChatCompletion,
+    CodeAnalysis,
+    CodeReview,
+    Documentation,
+    Testing
+}
+
+public enum ModelStatus
+{
+    Available,
+    Downloading,
+    Loading,
+    Error,
+    Deprecated
+}
+```
+
+### API Endpoints
+
+```http
+# Model Management
+GET    /models                          # List available models
+POST   /models/pull                     # Download new model from Ollama registry
+DELETE /models/{name}                   # Remove model
+GET    /models/{name}                   # Get model details
+GET    /models/{name}/metrics           # Get usage metrics
+
+# Generation (Ollama-compatible)
+POST   /generate                        # Text completion (streaming)
+POST   /chat                            # Chat completion (streaming)
+POST   /embeddings                      # Generate embeddings
+
+# Orchestration Integration
+POST   /inference                       # High-level inference (auto-selects model)
+POST   /code-generation                 # Specialized code generation endpoint
+POST   /code-review                     # Code review endpoint
+POST   /explain                         # Code explanation endpoint
+
+# Cache Management
+GET    /cache/stats                     # Cache hit rate, size
+DELETE /cache                           # Flush cache
+POST   /cache/warm                      # Pre-warm cache with common prompts
+
+# Health & Admin
+GET    /health                          # Service health + Ollama backend status
+GET    /admin/usage                     # Usage statistics
+POST   /admin/reload-models             # Reload model list from Ollama
+```
+
+### Ollama Backend Integration
+
+**Architecture**:
+
+```
+┌────────────────────────────────────────────────┐
+│          Ollama Service (.NET 9)               │
+│  ┌──────────────────────────────────────────┐ │
+│  │   API Layer (Minimal APIs)               │ │
+│  └────────────┬─────────────────────────────┘ │
+│               │                                │
+│  ┌────────────▼─────────────────────────────┐ │
+│  │   Domain Services                        │ │
+│  │   • ModelManager                         │ │
+│  │   • InferenceRouter                      │ │
+│  │   • PromptOptimizer                      │ │
+│  └────────────┬─────────────────────────────┘ │
+│               │                                │
+│  ┌────────────▼─────────────────────────────┐ │
+│  │   Ollama HTTP Client                     │ │
+│  │   (HttpClient → http://ollama:11434)     │ │
+│  └────────────┬─────────────────────────────┘ │
+└───────────────┼────────────────────────────────┘
+                │
+                ▼
+┌───────────────────────────────────────────────┐
+│         Ollama Container                      │
+│         (ollama/ollama:latest)                │
+│                                               │
+│   Models:                                     │
+│   • codellama:13b    (Code generation)        │
+│   • deepseek-coder:6.7b (Fast inference)      │
+│   • starcoder2:7b    (Multi-language)         │
+│   • mistral:7b       (General purpose)        │
+│                                               │
+│   Storage: /root/.ollama (volume mount)       │
+└───────────────────────────────────────────────┘
+```
+
+### Key Features
+
+#### 1. Intelligent Model Selection
+
+**Auto-routing based on task characteristics**:
+
+```csharp
+public class InferenceRouter
+{
+    public string SelectOptimalModel(CodeGenerationRequest request)
+    {
+        // Fast model for simple tasks
+        if (request.ComplexityScore < 0.3)
+            return "deepseek-coder:6.7b";  // 2s inference
+
+        // Specialized model for specific languages
+        if (request.Language == "python")
+            return "codellama:13b-python"; // Python-optimized
+
+        // General-purpose model for complex tasks
+        return "codellama:13b";            // 5s inference
+    }
+}
+```
+
+#### 2. Prompt Optimization & Caching
+
+**Deterministic prompt caching**:
+
+```csharp
+public async Task<string> GenerateWithCacheAsync(string prompt, string model)
+{
+    // Generate cache key
+    var cacheKey = $"ollama:{model}:{ComputeSHA256(prompt)}";
+
+    // Check Redis cache
+    var cached = await _cache.GetStringAsync(cacheKey);
+    if (cached != null)
+    {
+        _logger.LogInformation("Cache hit for prompt hash {Hash}", cacheKey);
+        return cached;
+    }
+
+    // Generate via Ollama
+    var response = await _ollamaClient.GenerateAsync(model, prompt);
+
+    // Cache for 24 hours (deterministic prompts only)
+    if (IsDeterministic(prompt))
+    {
+        await _cache.SetStringAsync(cacheKey, response,
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+            });
+    }
+
+    return response;
+}
+```
+
+#### 3. Streaming Support
+
+**Server-Sent Events (SSE)**:
+
+```csharp
+[HttpPost("generate")]
+public async Task GenerateStreaming([FromBody] OllamaGenerateRequest request)
+{
+    Response.ContentType = "text/event-stream";
+    Response.Headers.Add("Cache-Control", "no-cache");
+
+    await foreach (var chunk in _ollamaClient.GenerateStreamAsync(request.Model, request.Prompt))
+    {
+        var json = JsonSerializer.Serialize(new { response = chunk, done = false });
+        await Response.WriteAsync($"data: {json}\n\n");
+        await Response.Body.FlushAsync();
+    }
+
+    await Response.WriteAsync($"data: {JsonSerializer.Serialize(new { done = true })}\n\n");
+}
+```
+
+#### 4. Cost Tracking
+
+**Track usage for budgeting**:
+
+```csharp
+public async Task RecordUsageAsync(OllamaRequest request, OllamaResponse response)
+{
+    var usage = new ModelUsage
+    {
+        UserId = request.UserId,
+        TaskId = request.TaskId,
+        ModelName = request.ModelName,
+        PromptTokens = response.PromptEvalCount,
+        CompletionTokens = response.EvalCount,
+        TotalTokens = response.PromptEvalCount + response.EvalCount,
+        LatencyMs = response.EvalDuration / 1_000_000, // Convert ns to ms
+        Cost = 0.0m,  // Ollama is free, but track "opportunity cost"
+        Timestamp = DateTime.UtcNow
+    };
+
+    await _usageRepo.CreateAsync(usage);
+
+    // Publish event for analytics
+    await _eventBus.PublishAsync(new ModelUsageEvent
+    {
+        ModelName = usage.ModelName,
+        TokensUsed = usage.TotalTokens,
+        LatencyMs = usage.LatencyMs
+    });
+}
+```
+
+#### 5. Model Health Monitoring
+
+**Periodic health checks**:
+
+```csharp
+public class OllamaHealthCheck : IHealthCheck
+{
+    private readonly IOllamaClient _ollamaClient;
+
+    public async Task<HealthCheckResult> CheckHealthAsync(
+        HealthCheckContext context,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            // Check if Ollama is responsive
+            var models = await _ollamaClient.ListModelsAsync();
+
+            if (models.Count == 0)
+                return HealthCheckResult.Degraded("No models available");
+
+            // Check if primary model is loaded
+            var primaryModel = models.FirstOrDefault(m => m.Name == "codellama:13b");
+            if (primaryModel == null)
+                return HealthCheckResult.Degraded("Primary model not available");
+
+            return HealthCheckResult.Healthy($"{models.Count} models available");
+        }
+        catch (Exception ex)
+        {
+            return HealthCheckResult.Unhealthy("Ollama backend unreachable", ex);
+        }
+    }
+}
+```
+
+### Integration with Orchestration Service
+
+**LLM Client Interface**:
+
+```csharp
+// In Orchestration Service
+public interface ILlmClient
+{
+    Task<LlmResponse> GenerateAsync(LlmRequest request, CancellationToken ct = default);
+    IAsyncEnumerable<string> GenerateStreamAsync(LlmRequest request, CancellationToken ct = default);
+}
+
+// Ollama implementation
+public class OllamaLlmClient : ILlmClient
+{
+    private readonly HttpClient _httpClient;
+
+    public OllamaLlmClient(IHttpClientFactory factory)
+    {
+        _httpClient = factory.CreateClient("Ollama");
+        _httpClient.BaseAddress = new Uri("http://ollama-service:5008");
+    }
+
+    public async Task<LlmResponse> GenerateAsync(LlmRequest request, CancellationToken ct)
+    {
+        var ollamaRequest = new
+        {
+            model = MapModelName(request.Model),
+            prompt = request.Prompt,
+            options = new
+            {
+                temperature = request.Temperature,
+                num_predict = request.MaxTokens
+            }
+        };
+
+        var response = await _httpClient.PostAsJsonAsync("/generate", ollamaRequest, ct);
+        response.EnsureSuccessStatusCode();
+
+        var ollamaResponse = await response.Content.ReadFromJsonAsync<OllamaResponse>(ct);
+
+        return new LlmResponse
+        {
+            Content = ollamaResponse.Response,
+            Model = ollamaResponse.ModelName,
+            TokensUsed = ollamaResponse.PromptEvalCount + ollamaResponse.EvalCount,
+            FinishReason = ollamaResponse.DoneReason
+        };
+    }
+
+    private string MapModelName(string requestedModel)
+    {
+        // Map generic model names to Ollama-specific models
+        return requestedModel switch
+        {
+            "code-generation" => "codellama:13b",
+            "fast-code" => "deepseek-coder:6.7b",
+            "chat" => "mistral:7b",
+            _ => requestedModel
+        };
+    }
+}
+```
+
+### Model Recommendation Strategy
+
+**Decision Matrix**:
+
+| Task Type | Complexity | Model | Context Size | Avg Latency |
+|-----------|-----------|-------|--------------|-------------|
+| Bug Fix | Simple | deepseek-coder:6.7b | 4K | 2s |
+| Feature | Medium | codellama:13b | 8K | 5s |
+| Refactor | Complex | codellama:34b | 16K | 15s |
+| Documentation | Simple | mistral:7b | 8K | 3s |
+| Code Review | Medium | codellama:13b | 8K | 5s |
+| Testing | Simple | deepseek-coder:6.7b | 4K | 2s |
+
+### Events Published
+
+```csharp
+public record ModelUsageEvent(
+    string ModelName,
+    long TokensUsed,
+    double LatencyMs,
+    DateTime Timestamp
+);
+
+public record ModelDownloadedEvent(
+    string ModelName,
+    long SizeBytes,
+    DateTime DownloadedAt
+);
+
+public record InferenceFailedEvent(
+    string ModelName,
+    string ErrorMessage,
+    Guid RequestId,
+    DateTime FailedAt
+);
+```
+
+### Configuration
+
+```json
+{
+  "Ollama": {
+    "BaseUrl": "http://ollama:11434",
+    "Timeout": 120000,
+    "DefaultModel": "codellama:13b",
+    "Models": {
+      "CodeGeneration": "codellama:13b",
+      "FastInference": "deepseek-coder:6.7b",
+      "Chat": "mistral:7b",
+      "Python": "codellama:13b-python"
+    },
+    "CacheEnabled": true,
+    "CacheTTLHours": 24,
+    "MaxConcurrentRequests": 5,
+    "RetryPolicy": {
+      "MaxRetries": 3,
+      "BackoffSeconds": [2, 5, 10]
+    }
+  },
+  "ModelManagement": {
+    "AutoPullModels": ["codellama:13b", "deepseek-coder:6.7b"],
+    "PullOnStartup": true,
+    "CheckForUpdatesDaily": true
+  }
+}
+```
+
+### Deployment
+
+```yaml
+# Ollama Service (.NET)
+replicas: 2
+resources:
+  requests: { cpu: 200m, memory: 512Mi }
+  limits: { cpu: 1000m, memory: 1Gi }
+
+# Ollama Backend (GPU-accelerated)
+replicas: 1  # Single instance (GPU constraint)
+resources:
+  requests: { cpu: 4000m, memory: 8Gi }
+  limits: { cpu: 8000m, memory: 16Gi, nvidia.com/gpu: 1 }
+
+volumes:
+  - name: ollama-models
+    persistentVolumeClaim:
+      claimName: ollama-models-pvc  # 100GB for model storage
+```
+
+### Docker Compose Example
+
+```yaml
+services:
+  ollama-service:
+    build: ./src/Services/Ollama
+    ports: ["5008:5008"]
+    environment:
+      - Ollama__BaseUrl=http://ollama:11434
+      - ConnectionStrings__OllamaDb=Host=postgres;Database=coding_agent;Username=dev
+      - Redis__Connection=redis:6379
+    depends_on:
+      - ollama
+      - postgres
+      - redis
+
+  ollama:
+    image: ollama/ollama:latest
+    ports: ["11434:11434"]
+    volumes:
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+
+volumes:
+  ollama-models:
+```
+
+### Advantages of Ollama Service
+
+1. **Cost Reduction**: $0 inference cost vs $0.50-$2.00 per 1M tokens for cloud APIs
+2. **Data Privacy**: All inference happens on-premise, no data leaves infrastructure
+3. **Low Latency**: Direct network connection, no internet round-trip (50ms → 5s vs 200ms → 2s)
+4. **Offline Support**: Works without internet connectivity
+5. **Customizable Models**: Fine-tune models on proprietary codebases
+6. **Compliance**: Meets strict data residency requirements (GDPR, HIPAA)
+
+### When to Use Ollama vs Cloud LLMs
+
+| Criterion | Use Ollama | Use Cloud (OpenAI/Anthropic) |
+|-----------|------------|------------------------------|
+| **Task Complexity** | Simple, medium | Complex, critical |
+| **Budget** | Cost-sensitive | High-value tasks |
+| **Data Sensitivity** | Proprietary code | Public algorithms |
+| **Latency Tolerance** | Real-time (5s) | Can wait (10-30s) |
+| **Quality Requirements** | 85-90% accuracy | 95%+ accuracy |
+
+---
+
 ## Service Communication Matrix
 
-| From ↓ To → | Gateway | Chat | Orch | ML | GitHub | Browser | CI/CD | Dashboard |
-|-------------|---------|------|------|----|----|---------|-------|-----------|
-| Gateway | - | REST | REST | REST | REST | REST | REST | REST |
-| Chat | - | - | Events | REST | Events | - | - | Events |
-| Orchestration | - | Events | - | REST | REST | REST | REST | Events |
-| ML | - | - | Events | - | - | - | - | - |
-| GitHub | - | Events | Events | - | - | - | Events | - |
-| Browser | - | - | Events | - | - | - | - | - |
-| CI/CD | - | - | Events | - | REST | - | - | - |
-| Dashboard | - | REST | REST | REST | REST | REST | REST | - |
+| From ↓ To → | Gateway | Chat | Orch | ML | GitHub | Browser | CI/CD | Dashboard | Ollama |
+|-------------|---------|------|------|----|----|---------|-------|-----------|--------|
+| Gateway | - | REST | REST | REST | REST | REST | REST | REST | REST |
+| Chat | - | - | Events | REST | Events | - | - | Events | - |
+| Orchestration | - | Events | - | REST | REST | REST | REST | Events | REST |
+| ML | - | - | Events | - | - | - | - | - | - |
+| GitHub | - | Events | Events | - | - | - | Events | - | - |
+| Browser | - | - | Events | - | - | - | - | - | - |
+| CI/CD | - | - | Events | - | REST | - | - | - | - |
+| Dashboard | - | REST | REST | REST | REST | REST | REST | - | REST |
+| Ollama | - | - | Events | - | - | - | - | - | - |
 
 **Legend**: REST = Synchronous HTTP, Events = Asynchronous RabbitMQ
+
+**Key Integrations**:
+- **Orchestration → Ollama**: Primary LLM inference calls (code generation, chat, review)
+- **Dashboard → Ollama**: Model status queries, usage statistics
+- **Ollama → Events**: Publishes `ModelUsageEvent`, `InferenceFailedEvent` for analytics
 
 ---
 
