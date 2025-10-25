@@ -50,7 +50,8 @@ jobs:
           if [ -z "$CTX" ] && [ -f src/Services/Dashboard/Dockerfile ]; then CTX=src/Services/Dashboard; fi
           if [ -n "$CTX" ]; then
             echo "Dockerfile found in $CTX. Building image..."
-            docker build "$CTX" -t ghcr.io/${{ github.repository }}/dashboard-bff:${{ github.sha }}
+            REPO=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+            docker build "$CTX" -t ghcr.io/$REPO/dashboard-bff:$GITHUB_SHA
           else
             echo "No Dockerfile found for Dashboard BFF. Skipping docker build."
           fi

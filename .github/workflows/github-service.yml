@@ -50,7 +50,8 @@ jobs:
           if [ -z "$CTX" ] && [ -f src/Services/GitHub/Dockerfile ]; then CTX=src/Services/GitHub; fi
           if [ -n "$CTX" ]; then
             echo "Dockerfile found in $CTX. Building image..."
-            docker build "$CTX" -t ghcr.io/${{ github.repository }}/github-service:${{ github.sha }}
+            REPO=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+            docker build "$CTX" -t ghcr.io/$REPO/github-service:$GITHUB_SHA
           else
             echo "No Dockerfile found for GitHub Service. Skipping docker build."
           fi

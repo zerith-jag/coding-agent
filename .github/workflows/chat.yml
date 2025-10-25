@@ -50,7 +50,8 @@ jobs:
           if [ -z "$CTX" ] && [ -f src/Services/Chat/Dockerfile ]; then CTX=src/Services/Chat; fi
           if [ -n "$CTX" ]; then
             echo "Dockerfile found in $CTX. Building image..."
-            docker build "$CTX" -t ghcr.io/${{ github.repository }}/chat:${{ github.sha }}
+            REPO=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+            docker build "$CTX" -t ghcr.io/$REPO/chat:$GITHUB_SHA
           else
             echo "No Dockerfile found for Chat. Skipping docker build."
           fi

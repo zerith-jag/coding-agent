@@ -3,17 +3,16 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy csproj and restore dependencies
-COPY ["src/Services/Chat/CodingAgent.Services.Chat/CodingAgent.Services.Chat.csproj", "src/Services/Chat/CodingAgent.Services.Chat/"]
-RUN dotnet restore "src/Services/Chat/CodingAgent.Services.Chat/CodingAgent.Services.Chat.csproj"
+COPY CodingAgent.Services.Chat.csproj .
+RUN dotnet restore CodingAgent.Services.Chat.csproj
 
 # Copy everything else and build
 COPY . .
-WORKDIR "/src/src/Services/Chat/CodingAgent.Services.Chat"
-RUN dotnet build "CodingAgent.Services.Chat.csproj" -c Release -o /app/build
+RUN dotnet build CodingAgent.Services.Chat.csproj -c Release -o /app/build
 
 # Publish stage
 FROM build AS publish
-RUN dotnet publish "CodingAgent.Services.Chat.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish CodingAgent.Services.Chat.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final

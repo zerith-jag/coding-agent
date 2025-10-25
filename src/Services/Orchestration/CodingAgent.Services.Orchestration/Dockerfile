@@ -3,19 +3,18 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy project file and restore dependencies
-COPY ["src/Services/Orchestration/CodingAgent.Services.Orchestration/CodingAgent.Services.Orchestration.csproj", "src/Services/Orchestration/CodingAgent.Services.Orchestration/"]
-RUN dotnet restore "src/Services/Orchestration/CodingAgent.Services.Orchestration/CodingAgent.Services.Orchestration.csproj"
+COPY CodingAgent.Services.Orchestration.csproj .
+RUN dotnet restore CodingAgent.Services.Orchestration.csproj
 
 # Copy all source files
 COPY . .
 
 # Build the project
-WORKDIR "/src/src/Services/Orchestration/CodingAgent.Services.Orchestration"
-RUN dotnet build "CodingAgent.Services.Orchestration.csproj" -c Release -o /app/build
+RUN dotnet build CodingAgent.Services.Orchestration.csproj -c Release -o /app/build
 
 # Publish stage
 FROM build AS publish
-RUN dotnet publish "CodingAgent.Services.Orchestration.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish CodingAgent.Services.Orchestration.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final

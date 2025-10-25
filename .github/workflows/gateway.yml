@@ -53,7 +53,8 @@ jobs:
           if [ -z "$CTX" ] && [ -f src/Gateway/Dockerfile ]; then CTX=src/Gateway; fi
           if [ -n "$CTX" ]; then
             echo "Dockerfile found in $CTX. Building image..."
-            docker build "$CTX" -t ghcr.io/${{ github.repository }}/gateway:${{ github.sha }}
+            REPO=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+            docker build "$CTX" -t ghcr.io/$REPO/gateway:$GITHUB_SHA
           else
             echo "No Dockerfile found for Gateway. Skipping docker build."
           fi

@@ -3,17 +3,16 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy project file and restore dependencies
-COPY src/Services/Browser/CodingAgent.Services.Browser/CodingAgent.Services.Browser.csproj src/Services/Browser/CodingAgent.Services.Browser/
-RUN dotnet restore src/Services/Browser/CodingAgent.Services.Browser/CodingAgent.Services.Browser.csproj
+COPY CodingAgent.Services.Browser.csproj .
+RUN dotnet restore CodingAgent.Services.Browser.csproj
 
 # Copy source code and build
-COPY src/Services/Browser/CodingAgent.Services.Browser/ src/Services/Browser/CodingAgent.Services.Browser/
-WORKDIR /src/src/Services/Browser/CodingAgent.Services.Browser
-RUN dotnet build -c Release -o /app/build
+COPY . .
+RUN dotnet build CodingAgent.Services.Browser.csproj -c Release -o /app/build
 
 # Publish stage
 FROM build AS publish
-RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish CodingAgent.Services.Browser.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
