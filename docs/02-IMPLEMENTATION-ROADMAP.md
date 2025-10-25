@@ -1,8 +1,8 @@
 # Implementation Roadmap - Microservices Rewrite
 
-**Project Duration**: 6 months (24 weeks)
+**Project Duration**: 6.5 months (26 weeks)
 **Start Date**: October 2025
-**Target Completion**: April 2026
+**Target Completion**: May 2026
 **Team Size**: 1 developer + AI assistance (GitHub Copilot)
 **Current Phase**: Phase 1 Complete → Transitioning to Phase 2 (Core Services)
 **Last Updated**: October 25, 2025
@@ -278,12 +278,57 @@ Prerequisite: Phase 1 (Infrastructure & Gateway) deliverables complete.
 
 ---
 
-## Phase 3: Integration Services (Weeks 13-16)
+## Phase 3: Integration Services (Weeks 13-18)
 
 ### Goal
-Build GitHub, Browser, and CI/CD Monitor services.
+Build GitHub, Browser, CI/CD Monitor, and Ollama services.
 
-### Week 13-14: GitHub Service
+### Week 13-14: Ollama Service
+
+**Days 1-3: Foundation & Hardware Detection**
+- [ ] Create `CodingAgent.Services.Ollama` project structure
+- [ ] Implement domain models (OllamaModel, OllamaRequest, OllamaResponse, HardwareProfile, ABTest)
+- [ ] Deploy Ollama Backend in Docker Compose (ollama/ollama:latest) with GPU support
+- [ ] **Implement HardwareDetector: detect GPU type, VRAM, CPU cores**
+- [ ] **Auto-detect hardware on startup, determine appropriate initial models**
+- [ ] Implement OllamaHttpClient (wrapper around Ollama REST API)
+- **Deliverable**: Hardware detected, Ollama Backend running, no hardcoded model assumptions
+
+**Days 4-6: Dynamic Model Management**
+- [ ] **Implement ModelRegistry as IHostedService (syncs models every 5 minutes)**
+- [ ] **Query Ollama backend dynamically for all available models (no hardcoded lists)**
+- [ ] **Download hardware-appropriate initial models (13B for 16GB VRAM, 7B for 8GB, etc.)**
+- [ ] Implement ModelManager (download, list, delete models via API)
+- [ ] Add REST API endpoints (/models, /models/pull, /models/delete)
+- [ ] Write unit tests for ModelRegistry and HardwareDetector
+- **Deliverable**: Models dynamically discovered, hardware-aware initialization complete
+
+**Days 7-9: ML-Driven Model Selection & A/B Testing**
+- [ ] **Implement MlModelSelector (ML-driven, replaces hardcoded InferenceRouter)**
+- [ ] **Extract task features: task_type, complexity, language, context_size**
+- [ ] **Integrate with ML Classifier service for model prediction**
+- [ ] **Implement ABTestingEngine (create tests, route traffic, record results)**
+- [ ] **Add API endpoints: POST /ab-tests, GET /ab-tests/{id}/results**
+- [ ] Add REST API endpoint: POST /inference (with ML selection + A/B testing)
+- [ ] Implement PromptOptimizer (Redis caching for deterministic prompts)
+- [ ] Add UsageTracker with accuracy metrics (success, latency, quality score)
+- [ ] Configure OpenTelemetry tracing
+- [ ] Add OllamaHealthCheck (validate Ollama Backend availability)
+- **Deliverable**: ML-driven model selection operational, A/B testing framework ready, no hardcoded models
+
+**Day 10: Integration Tests & Cloud API Fallback**
+- [ ] Implement ICloudApiClient interface with IsConfigured() and HasTokensAvailableAsync()
+- [ ] Add token usage tracking and monthly limit enforcement
+- [ ] Add configuration validation on startup
+- [ ] Write integration tests with Testcontainers (Ollama Backend)
+- [ ] Test streaming generation
+- [ ] Test cache hit/miss scenarios
+- [ ] Test ML model selection with different task features
+- [ ] Test A/B test variant selection and result recording
+- [ ] Test circuit breaker fallback (only when cloud API configured with tokens)
+- **Deliverable**: 85%+ test coverage, A/B testing verified, safe fallback mechanism
+
+### Week 15-16: GitHub Service
 
 **Days 1-3: Octokit Integration**
 - [ ] Implement repository connection (OAuth flow)
@@ -306,7 +351,7 @@ Build GitHub, Browser, and CI/CD Monitor services.
 - [ ] Publish domain events to RabbitMQ
 - **Deliverable**: Webhooks triggering downstream actions
 
-### Week 15: Browser Service
+### Week 17: Browser Service
 
 **Days 1-2: Playwright Setup**
 - [ ] Install Playwright browsers (Chromium, Firefox)
@@ -321,7 +366,7 @@ Build GitHub, Browser, and CI/CD Monitor services.
 - [ ] Add PDF generation
 - **Deliverable**: All browser features operational
 
-### Week 16: CI/CD Monitor Service
+### Week 18: CI/CD Monitor Service
 
 **Days 1-3: GitHub Actions Integration**
 - [ ] Poll GitHub Actions API for build status
@@ -338,12 +383,12 @@ Build GitHub, Browser, and CI/CD Monitor services.
 
 ---
 
-## Phase 4: Frontend & Dashboard (Weeks 17-20)
+## Phase 4: Frontend & Dashboard (Weeks 19-22)
 
 ### Goal
 Rebuild Angular dashboard with microservices integration.
 
-### Week 17-18: Dashboard Service (BFF)
+### Week 19-20: Dashboard Service (BFF)
 
 **Days 1-3: Data Aggregation**
 - [ ] Implement `/dashboard/stats` (aggregate from all services)
@@ -357,7 +402,7 @@ Rebuild Angular dashboard with microservices integration.
 - [ ] Add cache warming on startup
 - **Deliverable**: Dashboard API response time < 100ms
 
-### Week 19-20: Angular Dashboard
+### Week 21-22: Angular Dashboard
 
 **Days 1-5: Component Rewrite**
 - [ ] Rebuild task list component (calls Dashboard Service)
@@ -375,12 +420,12 @@ Rebuild Angular dashboard with microservices integration.
 
 ---
 
-## Phase 5: Migration & Cutover (Weeks 21-22)
+## Phase 5: Migration & Cutover (Weeks 23-24)
 
 ### Goal
 Migrate data from old system and route production traffic to new system.
 
-### Week 21: Data Migration
+### Week 23: Data Migration
 
 **Days 1-2: Migration Scripts**
 - [ ] Write PostgreSQL migration (old DB → new schemas)
@@ -395,7 +440,7 @@ Migrate data from old system and route production traffic to new system.
 - [ ] Monitor for write errors
 - **Deliverable**: Data consistency validated
 
-### Week 22: Traffic Cutover
+### Week 24: Traffic Cutover
 
 **Days 1-2: Feature Flags**
 - [ ] Add feature flags in Gateway (`UseLegacyChat`, `UseLegacyOrchestration`)
@@ -417,12 +462,12 @@ Migrate data from old system and route production traffic to new system.
 
 ---
 
-## Phase 6: Stabilization & Documentation (Weeks 23-24)
+## Phase 6: Stabilization & Documentation (Weeks 25-26)
 
 ### Goal
 Fix bugs, optimize performance, complete documentation.
 
-### Week 23: Bug Fixes & Optimization
+### Week 25: Bug Fixes & Optimization
 
 **Days 1-3: Bug Triage**
 - [ ] Review production errors (last 7 days)
@@ -437,7 +482,7 @@ Fix bugs, optimize performance, complete documentation.
 - [ ] Tune cache TTLs
 - **Deliverable**: All endpoints < 500ms p95
 
-### Week 24: Documentation & Handoff
+### Week 26: Documentation & Handoff
 
 **Days 1-2: Architecture Documentation**
 - [ ] Finalize all ADRs (Architecture Decision Records)

@@ -87,34 +87,45 @@ A **modular AI coding assistant platform** that helps developers:
 │  • Request Routing & Load Balancing                             │
 │  • Circuit Breaking & Retry Logic                               │
 │  • OpenTelemetry Integration                                    │
-└───┬───────┬───────┬───────┬───────┬───────┬──────────┬──────────┘
-    │       │       │       │       │       │          │
-    ▼       ▼       ▼       ▼       ▼       ▼          ▼
-┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐  ┌─────────┐
-│Chat │ │Orch-│ │ ML/ │ │GitHub│ │Browser│ │CI/CD│  │Dashboard│
-│Svc  │ │estr-│ │Class│ │  Svc │ │  Svc  │ │ Mon │  │   Svc   │
-│     │ │ation│ │ifier│ │      │ │       │ │     │  │         │
-└──┬──┘ └──┬──┘ └──┬──┘ └──┬───┘ └───┬───┘ └──┬──┘  └────┬────┘
-   │       │       │       │         │        │          │
-   │       └───────┴───────┴─────────┴────────┴──────────┤
-   │                                                       │
-   └───────────────────────────┬───────────────────────────┘
-                               │
-                               ▼
-              ┌───────────────────────────────┐
-              │    Message Bus (RabbitMQ)     │
-              │   • MassTransit Integration   │
-              │   • Event Publishing/Subs     │
-              │   • Saga Coordination         │
-              └───────────────────────────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              │                │                │
-              ▼                ▼                ▼
-      ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-      │  PostgreSQL  │  │    Redis     │  │  Event Store │
-      │  (Per-Schema)│  │   (Cache)    │  │  (Audit Log) │
-      └──────────────┘  └──────────────┘  └──────────────┘
+└───┬───────┬───────┬───────┬───────┬───────┬──────────┬─────┬────┘
+    │       │       │       │       │       │          │     │
+    ▼       ▼       ▼       ▼       ▼       ▼          ▼     ▼
+┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐  ┌─────────┐ ┌──────┐
+│Chat │ │Orch-│ │ ML/ │ │GitHub│ │Browser│ │CI/CD│  │Dashboard│ │Ollama│
+│Svc  │ │estr-│ │Class│ │  Svc │ │  Svc  │ │ Mon │  │   Svc   │ │ Svc  │
+│     │ │ation│ │ifier│ │      │ │       │ │     │  │         │ │      │
+└──┬──┘ └──┬──┘ └──┬──┘ └──┬───┘ └───┬───┘ └──┬──┘  └────┬────┘ └──┬───┘
+   │       │       │       │         │        │          │         │
+   │       └───────┴───────┴─────────┴────────┴──────────┼─────────┤
+   │                                                       │         │
+   └───────────────────────────┬───────────────────────────┘         │
+                               │                                     │
+                               ▼                                     │
+              ┌───────────────────────────────┐                     │
+              │    Message Bus (RabbitMQ)     │                     │
+              │   • MassTransit Integration   │                     │
+              │   • Event Publishing/Subs     │                     │
+              │   • Saga Coordination         │                     │
+              └───────────────────────────────┘                     │
+                               │                                     │
+              ┌────────────────┼────────────────┐                   │
+              │                │                │                   │
+              ▼                ▼                ▼                   │
+      ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+      │  PostgreSQL  │  │    Redis     │  │  Event Store │        │
+      │  (Per-Schema)│  │   (Cache)    │  │  (Audit Log) │        │
+      └──────────────┘  └──────────────┘  └──────────────┘        │
+                                                                    │
+              ┌─────────────────────────────────────────────────────┘
+              │
+              ▼
+      ┌──────────────────┐
+      │  Ollama Backend  │
+      │   (LLM Models)   │
+      │  • codellama:13b │
+      │  • deepseek:6.7b │
+      │  • mistral:7b    │
+      └──────────────────┘
 ```
 
 ### Service Responsibilities
@@ -129,6 +140,7 @@ A **modular AI coding assistant platform** that helps developers:
 | **Browser Service** | Playwright automation, web scraping | .NET 9 | 5005 |
 | **CI/CD Monitor** | Build monitoring, automated fixes | .NET 9 | 5006 |
 | **Dashboard Service** | BFF for Angular frontend | .NET 9 | 5007 |
+| **Ollama Service** | Local LLM provider, on-premise inference | .NET 9 | 5008 |
 
 ---
 

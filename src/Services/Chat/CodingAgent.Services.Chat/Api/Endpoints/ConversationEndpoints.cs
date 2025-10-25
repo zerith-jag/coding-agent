@@ -20,8 +20,8 @@ public static class ConversationEndpoints
 
         group.MapGet("", GetConversations)
             .WithName("GetConversations")
-            .WithDescription("Retrieve conversations with pagination support. Default page size: 50, Max page size: 100")
-            .WithSummary("List conversations")
+            .WithDescription("Retrieve conversations with pagination and optional search. Use 'q' parameter for full-text search. Pagination: default page size 50, max 100.")
+            .WithSummary("List or search conversations with pagination")
             .Produces<List<ConversationDto>>();
 
         group.MapGet("{id:guid}", GetConversation)
@@ -55,6 +55,7 @@ public static class ConversationEndpoints
     }
 
     private static async Task<IResult> GetConversations(
+        string? q,
         IConversationRepository repository, 
         ILogger<Program> logger, 
         HttpContext httpContext,
@@ -62,10 +63,21 @@ public static class ConversationEndpoints
         int pageSize = 50,
         CancellationToken ct = default)
     {
-        logger.LogInformation("Getting conversations (page: {Page}, pageSize: {PageSize})", page, pageSize);
+        logger.LogInformation("Getting conversations (page: {Page}, pageSize: {PageSize}, query: {Query})", page, pageSize, q);
         
         var pagination = new PaginationParameters(page, pageSize);
-        var pagedResult = await repository.GetPagedAsync(pagination, ct);
+        PagedResult<Conversation> pagedResult;
+        
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            // Search with pagination
+            pagedResult = await repository.SearchPagedAsync(q, pagination, ct);
+        }
+        else
+        {
+            // Get all with pagination
+            pagedResult = await repository.GetPagedAsync(pagination, ct);
+        }
         
         var items = pagedResult.Items.Select(c => new ConversationDto
         {

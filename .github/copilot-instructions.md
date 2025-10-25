@@ -1,7 +1,7 @@
 <todos title="Address PR #115 review comments and merge" rule="Review steps frequently throughout the conversation and DO NOT stop between steps unless they explicitly require it.">
 - [x] fix-url-escaping: Remove unnecessary Uri.EscapeDataString() calls for numeric page and pageSize parameters in HATEOAS link generation 🔴
-- [-] resolve-merge-conflicts: Merge latest master into branch to resolve conflicts 🔴
-- [ ] run-tests-pr115: Run Chat service tests to verify changes 🔴
+- [x] resolve-merge-conflicts: Merge latest master into branch to resolve conflicts 🔴
+- [-] run-tests-pr115: Run Chat service tests to verify changes 🔴
 - [ ] merge-pr115: Commit changes, push to branch, and merge PR into master 🔴
 </todos>
 

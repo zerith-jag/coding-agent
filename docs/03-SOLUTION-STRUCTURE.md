@@ -253,7 +253,7 @@ coding-agent-v2/                          # Root monorepo
 │   │   │   ├── CodingAgent.Services.CICDMonitor.Tests/
 │   │   │   └── CodingAgent.Services.CICDMonitor.sln
 │   │   │
-│   │   └── Dashboard/
+│   │   ├── Dashboard/
 │   │       ├── CodingAgent.Services.Dashboard/
 │   │       │   ├── Domain/
 │   │       │   ├── Application/
@@ -268,6 +268,68 @@ coding-agent-v2/                          # Root monorepo
 │   │       │   └── Api/
 │   │       ├── CodingAgent.Services.Dashboard.Tests/
 │   │       └── CodingAgent.Services.Dashboard.sln
+│   │   │
+│   │   └── Ollama/
+│   │       ├── CodingAgent.Services.Ollama/
+│   │       │   ├── Program.cs
+│   │       │   ├── appsettings.json
+│   │       │   ├── Domain/
+│   │       │   │   ├── Entities/
+│   │       │   │   │   ├── OllamaModel.cs
+│   │       │   │   │   ├── ModelMetrics.cs
+│   │       │   │   │   ├── OllamaRequest.cs
+│   │       │   │   │   └── OllamaResponse.cs
+│   │       │   │   ├── Services/
+│   │       │   │   │   ├── IModelManager.cs
+│   │       │   │   │   ├── ModelManager.cs
+│   │       │   │   │   ├── IInferenceRouter.cs
+│   │       │   │   │   ├── InferenceRouter.cs
+│   │       │   │   │   └── PromptOptimizer.cs
+│   │       │   │   └── Repositories/
+│   │       │   │       ├── IModelRepository.cs
+│   │       │   │       └── IUsageRepository.cs
+│   │       │   ├── Application/
+│   │       │   │   ├── Commands/
+│   │       │   │   │   ├── PullModelCommand.cs
+│   │       │   │   │   └── DeleteModelCommand.cs
+│   │       │   │   ├── Queries/
+│   │       │   │   │   ├── ListModelsQuery.cs
+│   │       │   │   │   └── GetModelMetricsQuery.cs
+│   │       │   │   └── EventHandlers/
+│   │       │   │       └── ModelUsageEventHandler.cs
+│   │       │   ├── Infrastructure/
+│   │       │   │   ├── Persistence/
+│   │       │   │   │   ├── OllamaDbContext.cs
+│   │       │   │   │   ├── ModelRepository.cs
+│   │       │   │   │   └── UsageRepository.cs
+│   │       │   │   ├── Caching/
+│   │       │   │   │   └── PromptCacheService.cs
+│   │       │   │   ├── Messaging/
+│   │       │   │   │   └── EventPublisher.cs
+│   │       │   │   └── ExternalServices/
+│   │       │   │       └── OllamaHttpClient.cs
+│   │       │   ├── Api/
+│   │       │   │   ├── Endpoints/
+│   │       │   │   │   ├── ModelEndpoints.cs
+│   │       │   │   │   ├── GenerationEndpoints.cs
+│   │       │   │   │   ├── InferenceEndpoints.cs
+│   │       │   │   │   └── AdminEndpoints.cs
+│   │       │   │   └── HealthChecks/
+│   │       │   │       └── OllamaHealthCheck.cs
+│   │       │   └── Dockerfile
+│   │       ├── CodingAgent.Services.Ollama.Tests/
+│   │       │   ├── Unit/
+│   │       │   │   ├── Domain/
+│   │       │   │   │   ├── InferenceRouterTests.cs
+│   │       │   │   │   └── ModelManagerTests.cs
+│   │       │   │   └── Application/
+│   │       │   │       └── PullModelCommandTests.cs
+│   │       │   ├── Integration/
+│   │       │   │   ├── GenerationEndpointsTests.cs
+│   │       │   │   └── ModelEndpointsTests.cs
+│   │       │   └── TestFixtures/
+│   │       │       └── OllamaServiceFixture.cs
+│   │       └── CodingAgent.Services.Ollama.sln
 │   │
 │   └── Frontend/
 │       ├── coding-agent-dashboard/       # Angular 20.3
