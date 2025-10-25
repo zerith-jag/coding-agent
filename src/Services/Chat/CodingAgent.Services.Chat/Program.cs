@@ -1,5 +1,6 @@
 using CodingAgent.Services.Chat.Api.Endpoints;
 using CodingAgent.Services.Chat.Api.Hubs;
+using CodingAgent.Services.Chat.Domain.Repositories;
 using CodingAgent.Services.Chat.Infrastructure.Persistence;
 using CodingAgent.SharedKernel.Infrastructure;
 using MassTransit;
@@ -30,6 +31,9 @@ builder.Services.AddDbContext<ChatDbContext>(options =>
         options.UseInMemoryDatabase("ChatDb");
     }
 });
+
+// Repository registration
+builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
 
 // Redis Cache (optional - skip if not configured)
 var redisConnection = builder.Configuration["Redis:Connection"];
