@@ -50,7 +50,7 @@ mat-nav-list {
       background-color: rgba(0, 0, 0, 0.04);
       
       mat-icon {
-        color: primary;
+        color: var(--mdc-theme-primary);
       }
     }
   }
