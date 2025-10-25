@@ -1,0 +1,138 @@
+# ============================================
+# Alertmanager Configuration
+# Coding Agent - Microservices Platform
+# ============================================
+# Handles alert routing, grouping, and notification delivery.
+#
+# Reference: docs/02-IMPLEMENTATION-ROADMAP.md → Phase 1 → Week 5-6
+
+global:
+  # Default SMTP settings (configure for production)
+  smtp_from: 'alertmanager@coding-agent.local'
+  smtp_smarthost: 'localhost:25'
+  smtp_require_tls: false
+  
+  # Default notification timeout
+  resolve_timeout: 5m
+
+# Route tree for alert delivery
+route:
+  # Root route - catches all alerts
+  receiver: 'default-receiver'
+  
+  # Group alerts by severity and service to reduce noise
+  group_by: ['alertname', 'severity', 'service']
+  
+  # Wait before sending first notification for grouped alerts
+  group_wait: 30s
+  
+  # Wait before sending notification about new alerts in existing group
+  group_interval: 5m
+  
+  # Wait before resending notification for unresolved alerts
+  repeat_interval: 4h
+  
+  # Child routes for specific alert types
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      repeat_interval: 1h
+      continue: true  # Also send to default receiver
+    
+    # API alerts - route to API team
+    - match:
+        component: api
+      receiver: 'api-team'
+      continue: false
+    
+    # Infrastructure alerts - route to platform team
+    - match:
+        component: infrastructure
+      receiver: 'platform-team'
+      continue: false
+    
+    # Message bus alerts - route to integration team
+    - match:
+        component: messagebus
+      receiver: 'integration-team'
+      continue: false
+
+# Inhibition rules - suppress less severe alerts when more severe ones are active
+inhibit_rules:
+  # Suppress warning-level alerts if critical alert is firing for same service
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['service', 'alertname']
+  
+  # Suppress high latency alert if service is down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match:
+      alertname: 'APILatencyHigh'
+    equal: ['service']
+  
+  # Suppress queue depth alert if RabbitMQ is down
+  - source_match:
+      alertname: 'RabbitMQDown'
+    target_match:
+      alertname: 'RabbitMQQueueDepthHigh'
+    equal: []
+
+# Receiver configurations
+receivers:
+  # Default receiver - logs only (Phase 1)
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/alerts'
+        send_resolved: true
+  
+  # Critical alerts - multiple channels (configure for production)
+  - name: 'critical-alerts'
+    # Email notification (example - configure SMTP server)
+    # email_configs:
+    #   - to: 'oncall@coding-agent.local'
+    #     headers:
+    #       Subject: '[CRITICAL] {{ .GroupLabels.alertname }} - {{ .GroupLabels.service }}'
+    
+    # Slack notification (example - configure webhook URL)
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+    #     channel: '#alerts-critical'
+    #     title: '[CRITICAL] {{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+    
+    # PagerDuty notification (example - configure integration key)
+    # pagerduty_configs:
+    #   - service_key: 'YOUR_PAGERDUTY_SERVICE_KEY'
+    
+    # Webhook for custom integrations
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/critical'
+        send_resolved: true
+  
+  # API team notifications
+  - name: 'api-team'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/api-team'
+        send_resolved: true
+  
+  # Platform team notifications
+  - name: 'platform-team'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/platform-team'
+        send_resolved: true
+  
+  # Integration team notifications
+  - name: 'integration-team'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/integration-team'
+        send_resolved: true
+
+# Templates for alert notifications (optional)
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

@@ -1,0 +1,126 @@
+# ============================================
+# API Service Alert Rules
+# Coding Agent - Microservices Platform
+# ============================================
+# These rules monitor API health metrics including error rates and latency
+# across all microservices in the platform.
+#
+# Reference: docs/02-IMPLEMENTATION-ROADMAP.md → Phase 1 → Week 5-6
+
+groups:
+  - name: api_alerts
+    interval: 30s
+    rules:
+      # ==========================================
+      # High Error Rate Alert
+      # ==========================================
+      # Triggers when error rate exceeds 5% over 5 minutes
+      # Severity: Critical - impacts user experience
+      - alert: APIErrorRateHigh
+        expr: |
+          (
+            sum by (service) (
+              rate(http_server_requests_total{status=~"5.."}[5m])
+            )
+            /
+            sum by (service) (
+              rate(http_server_requests_total[5m])
+            )
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+          category: availability
+        annotations:
+          summary: "High error rate detected for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} is experiencing {{ $value | humanizePercentage }} error rate (threshold: 5%)"
+          impact: "Users may be experiencing service degradation or failures"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/api-error-rate-high.md"
+          dashboard_url: "http://localhost:3000/d/api-gateway/api-gateway"
+
+      # ==========================================
+      # High Latency Alert (P95)
+      # ==========================================
+      # Triggers when p95 latency exceeds 500ms over 5 minutes
+      # Severity: Warning - may impact user experience
+      - alert: APILatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service, le) (
+              rate(http_server_request_duration_seconds_bucket[5m])
+            )
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+          category: performance
+        annotations:
+          summary: "High latency detected for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} p95 latency is {{ $value | humanizeDuration }} (threshold: 500ms)"
+          impact: "Users may experience slow response times"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/api-latency-high.md"
+          dashboard_url: "http://localhost:3000/d/api-gateway/api-gateway"
+
+      # ==========================================
+      # High Request Rate (Potential DDoS)
+      # ==========================================
+      # Triggers when request rate is unusually high
+      # Severity: Warning - may indicate attack or spike
+      - alert: APIRequestRateHigh
+        expr: |
+          sum by (service) (
+            rate(http_server_requests_total[5m])
+          ) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+          category: security
+        annotations:
+          summary: "Unusually high request rate for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} is receiving {{ $value | humanize }} requests/second (threshold: 1000 req/s)"
+          impact: "Service may be under attack or experiencing unusual traffic spike"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/api-request-rate-high.md"
+          dashboard_url: "http://localhost:3000/d/api-gateway/api-gateway"
+
+      # ==========================================
+      # Circuit Breaker Open
+      # ==========================================
+      # Triggers when circuit breaker is in OPEN state
+      # Severity: Critical - service communication failed
+      - alert: CircuitBreakerOpen
+        expr: |
+          polly_circuit_breaker_state{state="Open"} > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: resilience
+          category: availability
+        annotations:
+          summary: "Circuit breaker open for {{ $labels.service }}"
+          description: "Circuit breaker is OPEN for {{ $labels.service }} preventing requests to downstream service"
+          impact: "Service communication is blocked, functionality may be degraded"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/circuit-breaker-open.md"
+          dashboard_url: "http://localhost:3000/d/api-gateway/api-gateway"
+
+      # ==========================================
+      # Rate Limiter Active (High Traffic)
+      # ==========================================
+      # Triggers when rate limiting is actively rejecting requests
+      # Severity: Warning - users being throttled
+      - alert: RateLimiterActivelyThrottling
+        expr: |
+          rate(rate_limiter_rejected_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: gateway
+          category: capacity
+        annotations:
+          summary: "Rate limiter actively throttling requests"
+          description: "Rate limiter is rejecting {{ $value | humanize }} requests/second"
+          impact: "Users may receive 429 Too Many Requests errors"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/rate-limiter-throttling.md"
+          dashboard_url: "http://localhost:3000/d/api-gateway/api-gateway"

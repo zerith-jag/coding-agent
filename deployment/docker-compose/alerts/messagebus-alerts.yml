@@ -1,0 +1,180 @@
+# ============================================
+# Message Bus Alert Rules
+# Coding Agent - Microservices Platform
+# ============================================
+# These rules monitor RabbitMQ message bus health including queue depth,
+# consumer lag, and connection issues.
+#
+# Reference: docs/02-IMPLEMENTATION-ROADMAP.md → Phase 1 → Week 5-6
+
+groups:
+  - name: messagebus_alerts
+    interval: 30s
+    rules:
+      # ==========================================
+      # High Queue Depth
+      # ==========================================
+      # Triggers when queue depth exceeds threshold for 5 minutes
+      # Severity: Warning - consumers may be lagging
+      - alert: RabbitMQQueueDepthHigh
+        expr: |
+          rabbitmq_queue_messages_ready > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: messagebus
+          category: performance
+        annotations:
+          summary: "High message queue depth for {{ $labels.queue }}"
+          description: "Queue {{ $labels.queue }} has {{ $value | humanize }} messages ready (threshold: 1000)"
+          impact: "Message processing is lagging, events may be delayed"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/rabbitmq-queue-depth-high.md"
+          dashboard_url: "http://localhost:3000/d/backend-services/backend-services"
+
+      # ==========================================
+      # Critical Queue Depth
+      # ==========================================
+      # Triggers when queue depth is critically high for 10 minutes
+      # Severity: Critical - may cause backpressure
+      - alert: RabbitMQQueueDepthCritical
+        expr: |
+          rabbitmq_queue_messages_ready > 10000
+        for: 10m
+        labels:
+          severity: critical
+          component: messagebus
+          category: performance
+        annotations:
+          summary: "Critical message queue depth for {{ $labels.queue }}"
+          description: "Queue {{ $labels.queue }} has {{ $value | humanize }} messages ready (threshold: 10000)"
+          impact: "Message processing severely lagging, system may experience backpressure"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/rabbitmq-queue-depth-critical.md"
+          dashboard_url: "http://localhost:3000/d/backend-services/backend-services"
+
+      # ==========================================
+      # No Active Consumers
+      # ==========================================
+      # Triggers when a queue has no active consumers
+      # Severity: Critical - messages not being processed
+      - alert: RabbitMQNoConsumers
+        expr: |
+          rabbitmq_queue_consumers{queue!~".*dlx.*|.*dead.*"} == 0
+          and
+          rabbitmq_queue_messages_ready > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: messagebus
+          category: availability
+        annotations:
+          summary: "No consumers for queue {{ $labels.queue }}"
+          description: "Queue {{ $labels.queue }} has messages but no active consumers"
+          impact: "Messages are not being processed, events are accumulating"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/rabbitmq-no-consumers.md"
+          dashboard_url: "http://localhost:3000/d/backend-services/backend-services"
+
+      # ==========================================
+      # High Message Publish Rate
+      # ==========================================
+      # Triggers when message publish rate is unusually high
+      # Severity: Warning - may indicate spike or loop
+      - alert: RabbitMQHighPublishRate
+        expr: |
+          rate(rabbitmq_queue_messages_published_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: messagebus
+          category: performance
+        annotations:
+          summary: "High message publish rate for queue {{ $labels.queue }}"
+          description: "Queue {{ $labels.queue }} is receiving {{ $value | humanize }} messages/second (threshold: 1000 msg/s)"
+          impact: "Unusual message volume may indicate event loop or spike"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/rabbitmq-high-publish-rate.md"
+          dashboard_url: "http://localhost:3000/d/backend-services/backend-services"
+
+      # ==========================================
+      # High Consumer Utilization
+      # ==========================================
+      # Triggers when consumers are at capacity
+      # Severity: Warning - may need scaling
+      - alert: RabbitMQConsumerUtilizationHigh
+        expr: |
+          (
+            rabbitmq_queue_consumer_utilisation
+          ) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          component: messagebus
+          category: capacity
+        annotations:
+          summary: "High consumer utilization for queue {{ $labels.queue }}"
+          description: "Queue {{ $labels.queue }} consumers are at {{ $value | humanizePercentage }} utilization (threshold: 90%)"
+          impact: "Consumers are at capacity, may need horizontal scaling"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/rabbitmq-consumer-utilization-high.md"
+          dashboard_url: "http://localhost:3000/d/backend-services/backend-services"
+
+      # ==========================================
+      # Connection Failures
+      # ==========================================
+      # Triggers when RabbitMQ connections are failing
+      # Severity: Critical - service connectivity issues
+      - alert: RabbitMQConnectionFailures
+        expr: |
+          rate(rabbitmq_connections_closed_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: critical
+          component: messagebus
+          category: availability
+        annotations:
+          summary: "RabbitMQ connection failures detected"
+          description: "RabbitMQ is experiencing {{ $value | humanize }} connection closures per second"
+          impact: "Services may be unable to publish or consume messages"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/rabbitmq-connection-failures.md"
+          dashboard_url: "http://localhost:3000/d/backend-services/backend-services"
+
+      # ==========================================
+      # Memory Usage High
+      # ==========================================
+      # Triggers when RabbitMQ memory usage is high
+      # Severity: Warning - may trigger flow control
+      - alert: RabbitMQMemoryHigh
+        expr: |
+          (
+            rabbitmq_process_resident_memory_bytes
+            /
+            rabbitmq_resident_memory_limit_bytes
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: messagebus
+          category: capacity
+        annotations:
+          summary: "RabbitMQ memory usage is high"
+          description: "RabbitMQ is using {{ $value | humanize }}% of available memory (threshold: 80%)"
+          impact: "May trigger flow control and block publishers"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/rabbitmq-memory-high.md"
+          dashboard_url: "http://localhost:3000/d/backend-services/backend-services"
+
+      # ==========================================
+      # Disk Space Low
+      # ==========================================
+      # Triggers when RabbitMQ disk space is low
+      # Severity: Critical - may block operations
+      - alert: RabbitMQDiskSpaceLow
+        expr: |
+          rabbitmq_disk_space_available_bytes < 1073741824
+        for: 5m
+        labels:
+          severity: critical
+          component: messagebus
+          category: capacity
+        annotations:
+          summary: "RabbitMQ disk space is low"
+          description: "RabbitMQ has only {{ $value | humanize }}B available disk space (threshold: 1GB)"
+          impact: "RabbitMQ may block all operations when disk is full"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/rabbitmq-disk-space-low.md"
+          dashboard_url: "http://localhost:3000/d/backend-services/backend-services"

@@ -11,15 +11,16 @@ global:
     cluster: 'coding-agent-prod'
     environment: 'production'
 
-# Alertmanager configuration (optional, for future use)
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets: ['alertmanager:9093']
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+      timeout: 10s
 
 # Load rules once and periodically evaluate them
-# rule_files:
-#   - "alerts/*.yml"
+rule_files:
+  - "/etc/prometheus/alerts/*.yml"
 
 scrape_configs:
   # ==========================================

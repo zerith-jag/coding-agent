@@ -1,0 +1,192 @@
+# ============================================
+# Infrastructure Alert Rules
+# Coding Agent - Microservices Platform
+# ============================================
+# These rules monitor infrastructure resources including CPU, memory,
+# disk, and container health.
+#
+# Reference: docs/02-IMPLEMENTATION-ROADMAP.md → Phase 1 → Week 5-6
+
+groups:
+  - name: infrastructure_alerts
+    interval: 30s
+    rules:
+      # ==========================================
+      # High CPU Usage
+      # ==========================================
+      # Triggers when CPU usage exceeds 80% for 10 minutes
+      # Severity: Warning - may impact performance
+      - alert: ContainerCPUHigh
+        expr: |
+          (
+            sum by (container_name) (
+              rate(container_cpu_usage_seconds_total[5m])
+            ) * 100
+          ) > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+          category: capacity
+        annotations:
+          summary: "High CPU usage for container {{ $labels.container_name }}"
+          description: "Container {{ $labels.container_name }} CPU usage is {{ $value | humanize }}% (threshold: 80%)"
+          impact: "Service performance may be degraded"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/container-cpu-high.md"
+          dashboard_url: "http://localhost:3000/d/system-health/system-health"
+
+      # ==========================================
+      # High Memory Usage
+      # ==========================================
+      # Triggers when memory usage exceeds 85% for 10 minutes
+      # Severity: Critical - may cause OOM kills
+      - alert: ContainerMemoryHigh
+        expr: |
+          (
+            sum by (container_name) (
+              container_memory_usage_bytes
+            )
+            /
+            sum by (container_name) (
+              container_spec_memory_limit_bytes
+            ) * 100
+          ) > 85
+        for: 10m
+        labels:
+          severity: critical
+          component: infrastructure
+          category: capacity
+        annotations:
+          summary: "High memory usage for container {{ $labels.container_name }}"
+          description: "Container {{ $labels.container_name }} memory usage is {{ $value | humanize }}% (threshold: 85%)"
+          impact: "Container may be killed by OOM killer, causing service disruption"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/container-memory-high.md"
+          dashboard_url: "http://localhost:3000/d/system-health/system-health"
+
+      # ==========================================
+      # Container Restart Rate High
+      # ==========================================
+      # Triggers when containers are restarting frequently
+      # Severity: Critical - indicates instability
+      - alert: ContainerRestartRateHigh
+        expr: |
+          rate(container_restart_count[15m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: infrastructure
+          category: availability
+        annotations:
+          summary: "High restart rate for container {{ $labels.container_name }}"
+          description: "Container {{ $labels.container_name }} is restarting frequently ({{ $value | humanize }} restarts per minute)"
+          impact: "Service may be experiencing crashes or health check failures"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/container-restart-rate-high.md"
+          dashboard_url: "http://localhost:3000/d/system-health/system-health"
+
+      # ==========================================
+      # Disk Space Low
+      # ==========================================
+      # Triggers when disk usage exceeds 80%
+      # Severity: Warning - may fill up soon
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            sum by (instance) (
+              node_filesystem_avail_bytes{fstype!="tmpfs"}
+            )
+            /
+            sum by (instance) (
+              node_filesystem_size_bytes{fstype!="tmpfs"}
+            ) * 100
+          ) < 20
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+          category: capacity
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Instance {{ $labels.instance }} has only {{ $value | humanize }}% disk space available (threshold: 20%)"
+          impact: "Applications may fail to write logs or data"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/disk-space-low.md"
+          dashboard_url: "http://localhost:3000/d/system-health/system-health"
+
+      # ==========================================
+      # Service Down
+      # ==========================================
+      # Triggers when a service is not responding to health checks
+      # Severity: Critical - service unavailable
+      - alert: ServiceDown
+        expr: |
+          up{job!~"prometheus|node-exporter|cadvisor"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: infrastructure
+          category: availability
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} is not responding to health checks"
+          impact: "Service is unavailable to users"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/service-down.md"
+          dashboard_url: "http://localhost:3000/d/system-health/system-health"
+
+      # ==========================================
+      # PostgreSQL Down
+      # ==========================================
+      # Triggers when PostgreSQL is not responding
+      # Severity: Critical - database unavailable
+      - alert: PostgreSQLDown
+        expr: |
+          up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+          category: availability
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL is not responding to health checks"
+          impact: "All services dependent on database are non-functional"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/postgresql-down.md"
+          dashboard_url: "http://localhost:3000/d/database-postgresql/database"
+
+      # ==========================================
+      # Redis Down
+      # ==========================================
+      # Triggers when Redis is not responding
+      # Severity: Critical - cache unavailable
+      - alert: RedisDown
+        expr: |
+          up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: cache
+          category: availability
+        annotations:
+          summary: "Redis cache is down"
+          description: "Redis is not responding to health checks"
+          impact: "Rate limiting and caching unavailable, performance degraded"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/redis-down.md"
+          dashboard_url: "http://localhost:3000/d/cache-redis/redis-cache"
+
+      # ==========================================
+      # RabbitMQ Down
+      # ==========================================
+      # Triggers when RabbitMQ is not responding
+      # Severity: Critical - message bus unavailable
+      - alert: RabbitMQDown
+        expr: |
+          up{job="rabbitmq"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: messagebus
+          category: availability
+        annotations:
+          summary: "RabbitMQ message bus is down"
+          description: "RabbitMQ is not responding to health checks"
+          impact: "Event-driven communication between services is blocked"
+          runbook_url: "https://github.com/JustAGameZA/coding-agent/blob/main/docs/runbooks/rabbitmq-down.md"
+          dashboard_url: "http://localhost:3000/d/backend-services/backend-services"
