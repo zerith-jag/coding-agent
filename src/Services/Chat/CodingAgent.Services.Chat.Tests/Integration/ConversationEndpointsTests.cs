@@ -56,5 +56,47 @@ public class ConversationEndpointsTests
         list!.Any(c => c.Title == title).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task DeleteConversation_ShouldReturn204()
+    {
+        // Arrange
+        var title = $"Delete Test {Guid.NewGuid()}";
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/conversations", new { title });
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await createResponse.Content.ReadFromJsonAsync<ConversationDto>();
+
+        // Act
+        var deleteResponse = await _fixture.Client.DeleteAsync($"/conversations/{created!.Id}");
+
+        // Assert
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task DeleteConversation_NonExistent_ShouldReturn404()
+    {
+        // Arrange
+        var nonExistentId = Guid.NewGuid();
+
+        // Act
+        var deleteResponse = await _fixture.Client.DeleteAsync($"/conversations/{nonExistentId}");
+
+        // Assert
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task GetConversation_NonExistent_ShouldReturn404()
+    {
+        // Arrange
+        var nonExistentId = Guid.NewGuid();
+
+        // Act
+        var getResponse = await _fixture.Client.GetAsync($"/conversations/{nonExistentId}");
+
+        // Assert
+        getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
     private record ConversationDto(Guid Id, string Title, DateTime CreatedAt, DateTime UpdatedAt);
 }
