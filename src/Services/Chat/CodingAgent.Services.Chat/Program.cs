@@ -6,22 +6,28 @@ using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database configuration (stub - no actual connection yet)
+// Database configuration
 builder.Services.AddDbContext<ChatDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("ChatDb");
-    var useRelational = !string.IsNullOrWhiteSpace(connectionString) && builder.Environment.IsProduction();
 
-    if (useRelational)
+    if (!string.IsNullOrWhiteSpace(connectionString))
     {
-        options.UseNpgsql(connectionString!);
+        // Use PostgreSQL when a connection string is explicitly provided
+        options.UseNpgsql(connectionString);
+    }
+    else if (builder.Environment.IsProduction())
+    {
+        // In Production, require explicit configuration
+        throw new InvalidOperationException("ChatDb connection string is required in Production");
     }
     else
     {
-        // Default to in-memory for development/testing
+        // Default to in-memory for development/testing when not configured
         options.UseInMemoryDatabase("ChatDb");
     }
 });
@@ -47,15 +53,31 @@ builder.Services.AddMassTransit(x =>
 
     x.UsingRabbitMq((context, cfg) =>
     {
-        var host = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
-        var username = builder.Configuration["RabbitMQ:Username"] ?? "guest";
-        var password = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+        var cfgHostRaw = builder.Configuration["RabbitMQ:Host"];
+        var cfgUserRaw = builder.Configuration["RabbitMQ:Username"];
+        var cfgPassRaw = builder.Configuration["RabbitMQ:Password"];
+        var isProd = builder.Environment.IsProduction();
 
-        cfg.Host(host, h =>
+        // Default only in non-production
+        var host = isProd ? cfgHostRaw : (cfgHostRaw ?? "localhost");
+        var username = isProd ? cfgUserRaw : (cfgUserRaw ?? "guest");
+        var password = isProd ? cfgPassRaw : (cfgPassRaw ?? "guest");
+
+        if (isProd && (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)))
         {
-            h.Username(username);
-            h.Password(password);
-        });
+            throw new InvalidOperationException("RabbitMQ configuration (Host/Username/Password) is required in Production");
+        }
+
+        if (!string.IsNullOrWhiteSpace(host))
+        {
+            cfg.Host(host!, h =>
+            {
+                if (!string.IsNullOrWhiteSpace(username))
+                    h.Username(username!);
+                if (!string.IsNullOrWhiteSpace(password))
+                    h.Password(password!);
+            });
+        }
 
         cfg.ConfigureEndpoints(context);
     });
@@ -72,14 +94,20 @@ if (!string.IsNullOrEmpty(redisConnection))
         .AddRedis(redisConnection, name: "redis");
 }
 
-// RabbitMQ health check if configured
-var rabbitHost = builder.Configuration["RabbitMQ:Host"];
-var rabbitUser = builder.Configuration["RabbitMQ:Username"];
-var rabbitPass = builder.Configuration["RabbitMQ:Password"];
-if (!string.IsNullOrWhiteSpace(rabbitHost) && !string.IsNullOrWhiteSpace(rabbitUser) && !string.IsNullOrWhiteSpace(rabbitPass))
+// RabbitMQ health check if credentials explicitly provided in configuration
+var hcRabbitHost = builder.Configuration["RabbitMQ:Host"];
+var hcRabbitUser = builder.Configuration["RabbitMQ:Username"];
+var hcRabbitPass = builder.Configuration["RabbitMQ:Password"];
+var rabbitConfigured = !string.IsNullOrWhiteSpace(hcRabbitHost) && !string.IsNullOrWhiteSpace(hcRabbitUser) && !string.IsNullOrWhiteSpace(hcRabbitPass);
+if (rabbitConfigured)
 {
-    var amqp = $"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672";
-    builder.Services.AddHealthChecks().AddRabbitMQ(amqp, name: "rabbitmq");
+    builder.Services.AddHealthChecks().AddRabbitMQ(_ => new ConnectionFactory
+    {
+        HostName = hcRabbitHost,
+        UserName = hcRabbitUser,
+        Password = hcRabbitPass,
+        Port = 5672
+    }, name: "rabbitmq");
 }
 
 // OpenTelemetry - Tracing and Metrics

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,14 +24,20 @@ builder.Services.AddHealthChecks()
         name: "postgresql",
         tags: new[] { "db", "ready" });
 
-// RabbitMQ health check if configured
-var rabbitHost = builder.Configuration["RabbitMQ:Host"];
-var rabbitUser = builder.Configuration["RabbitMQ:Username"];
-var rabbitPass = builder.Configuration["RabbitMQ:Password"];
-if (!string.IsNullOrWhiteSpace(rabbitHost) && !string.IsNullOrWhiteSpace(rabbitUser) && !string.IsNullOrWhiteSpace(rabbitPass))
+// RabbitMQ health check if configured (avoid embedding credentials in URI)
+var hcRabbitHost = builder.Configuration["RabbitMQ:Host"];
+var hcRabbitUser = builder.Configuration["RabbitMQ:Username"];
+var hcRabbitPass = builder.Configuration["RabbitMQ:Password"];
+var rabbitConfigured = !string.IsNullOrWhiteSpace(hcRabbitHost) && !string.IsNullOrWhiteSpace(hcRabbitUser) && !string.IsNullOrWhiteSpace(hcRabbitPass);
+if (rabbitConfigured)
 {
-    var amqp = $"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672";
-    builder.Services.AddHealthChecks().AddRabbitMQ(amqp, name: "rabbitmq");
+    builder.Services.AddHealthChecks().AddRabbitMQ(_ => new ConnectionFactory
+    {
+        HostName = hcRabbitHost,
+        UserName = hcRabbitUser,
+        Password = hcRabbitPass,
+        Port = 5672
+    }, name: "rabbitmq");
 }
 
 // OpenTelemetry configuration
@@ -64,15 +71,31 @@ builder.Services.AddMassTransit(x =>
 
     x.UsingRabbitMq((context, cfg) =>
     {
-        var host = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
-        var username = builder.Configuration["RabbitMQ:Username"] ?? "guest";
-        var password = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+        var cfgHostRaw = builder.Configuration["RabbitMQ:Host"];
+        var cfgUserRaw = builder.Configuration["RabbitMQ:Username"];
+        var cfgPassRaw = builder.Configuration["RabbitMQ:Password"];
+        var isProd = builder.Environment.IsProduction();
 
-        cfg.Host(host, h =>
+        // Default only in non-production
+        var host = isProd ? cfgHostRaw : (cfgHostRaw ?? "localhost");
+        var username = isProd ? cfgUserRaw : (cfgUserRaw ?? "guest");
+        var password = isProd ? cfgPassRaw : (cfgPassRaw ?? "guest");
+
+        if (isProd && (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)))
         {
-            h.Username(username);
-            h.Password(password);
-        });
+            throw new InvalidOperationException("RabbitMQ configuration (Host/Username/Password) is required in Production");
+        }
+
+        if (!string.IsNullOrWhiteSpace(host))
+        {
+            cfg.Host(host!, h =>
+            {
+                if (!string.IsNullOrWhiteSpace(username))
+                    h.Username(username!);
+                if (!string.IsNullOrWhiteSpace(password))
+                    h.Password(password!);
+            });
+        }
 
         cfg.ConfigureEndpoints(context);
     });
@@ -117,17 +140,24 @@ app.MapGet("/", () => Results.Ok(new
 .WithName("Root")
 .ExcludeFromDescription();
 
-// Ensure database schema exists (dev/test convenience)
+// Apply migrations when using a relational provider
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<OrchestrationDbContext>();
     try
     {
-        await db.Database.EnsureCreatedAsync();
+        if (db.Database.IsRelational())
+        {
+            await db.Database.MigrateAsync();
+        }
     }
-    catch
+    catch (Exception ex)
     {
-        // Ignore schema creation failures in scenarios where DB isn't reachable
+        app.Logger.LogError(ex, "Failed to apply OrchestrationDb migrations on startup");
+        if (app.Environment.IsProduction())
+        {
+            throw;
+        }
     }
 }
 
