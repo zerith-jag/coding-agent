@@ -1,6 +1,8 @@
 using CodingAgent.Services.Chat.Domain.Entities;
 using CodingAgent.Services.Chat.Domain.Repositories;
+using CodingAgent.SharedKernel.Results;
 using FluentValidation;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace CodingAgent.Services.Chat.Api.Endpoints;
@@ -18,8 +20,8 @@ public static class ConversationEndpoints
 
         group.MapGet("", GetConversations)
             .WithName("GetConversations")
-            .WithDescription("Retrieve all conversations ordered by most recently updated. Use 'q' parameter for full-text search across conversation titles and message content.")
-            .WithSummary("List or search conversations")
+            .WithDescription("Retrieve conversations with pagination and optional search. Use 'q' parameter for full-text search. Pagination: default page size 50, max 100.")
+            .WithSummary("List or search conversations with pagination")
             .Produces<List<ConversationDto>>();
 
         group.MapGet("{id:guid}", GetConversation)
@@ -54,37 +56,74 @@ public static class ConversationEndpoints
 
     private static async Task<IResult> GetConversations(
         string? q,
-        IConversationRepository repository,
-        ILogger<Program> logger,
-        CancellationToken ct)
+        IConversationRepository repository, 
+        ILogger<Program> logger, 
+        HttpContext httpContext,
+        int page = 1, 
+        int pageSize = 50,
+        CancellationToken ct = default)
     {
-        IEnumerable<Conversation> conversations;
+        logger.LogInformation("Getting conversations (page: {Page}, pageSize: {PageSize}, query: {Query})", page, pageSize, q);
+        
+        var pagination = new PaginationParameters(page, pageSize);
+        PagedResult<Conversation> pagedResult;
         
         if (!string.IsNullOrWhiteSpace(q))
         {
-            logger.LogInformation("Searching conversations with query: {Query}", q);
-            conversations = await repository.SearchAsync(q, ct);
+            // Search with pagination
+            pagedResult = await repository.SearchPagedAsync(q, pagination, ct);
         }
         else
         {
-            logger.LogInformation("Getting conversations");
-            // TODO: Filter by authenticated user when auth is wired
-            conversations = await repository.GetAllAsync(ct);
+            // Get all with pagination
+            pagedResult = await repository.GetPagedAsync(pagination, ct);
         }
-
-        var items = MapConversationsToDtos(conversations);
-        return Results.Ok(items);
-    }
-    
-    private static List<ConversationDto> MapConversationsToDtos(IEnumerable<Conversation> conversations)
-    {
-        return conversations.Select(c => new ConversationDto
+        
+        var items = pagedResult.Items.Select(c => new ConversationDto
         {
             Id = c.Id,
             Title = c.Title,
             CreatedAt = c.CreatedAt,
             UpdatedAt = c.UpdatedAt
         }).ToList();
+
+        // Add pagination metadata to response headers
+        httpContext.Response.Headers["X-Total-Count"] = pagedResult.TotalCount.ToString();
+        httpContext.Response.Headers["X-Page-Number"] = pagedResult.PageNumber.ToString();
+        httpContext.Response.Headers["X-Page-Size"] = pagedResult.PageSize.ToString();
+        httpContext.Response.Headers["X-Total-Pages"] = pagedResult.TotalPages.ToString();
+
+        // Add HATEOAS links
+        var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}{httpContext.Request.Path}";
+        var links = new List<string>();
+
+        // First page link
+        links.Add($"<{baseUrl}?page=1&pageSize={pageSize}>; rel=\"first\"");
+
+        // Last page link
+        if (pagedResult.TotalPages > 0)
+        {
+            links.Add($"<{baseUrl}?page={pagedResult.TotalPages}&pageSize={pageSize}>; rel=\"last\"");
+        }
+
+        // Previous page link
+        if (pagedResult.HasPreviousPage)
+        {
+            links.Add($"<{baseUrl}?page={pagedResult.PageNumber - 1}&pageSize={pageSize}>; rel=\"prev\"");
+        }
+
+        // Next page link
+        if (pagedResult.HasNextPage)
+        {
+            links.Add($"<{baseUrl}?page={pagedResult.PageNumber + 1}&pageSize={pageSize}>; rel=\"next\"");
+        }
+
+        if (links.Any())
+        {
+            httpContext.Response.Headers["Link"] = string.Join(", ", links);
+        }
+
+        return Results.Ok(items);
     }
 
     private static async Task<IResult> GetConversation(Guid id, IConversationRepository repository, ILogger<Program> logger, CancellationToken ct)
