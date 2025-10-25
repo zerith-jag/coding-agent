@@ -97,6 +97,14 @@ Production-ready infrastructure: Gateway, Auth, Databases, Message Bus, Observab
 - [ ] Separate pipelines allow parallel deployment
 - **Deliverable**: `.github/workflows/gateway.yml` and similar
 
+**Message Bus Wiring (Completed)**
+- [x] MassTransit configured across services (Chat, Orchestration, CI/CD Monitor)
+- [x] RabbitMQ connection via configuration (host/username/password)
+- [x] Basic publish/consume stubs implemented using SharedKernel events
+- [x] Health checks added for RabbitMQ when configured
+- [x] Tests green locally; Chat tests use in-memory EF when Docker is unavailable
+- **Deliverable**: Services start with bus wired; event logs visible when broker is running
+
 ### Week 4: API Gateway (Production)
 
 **Days 1-2: Core Gateway**
