@@ -1,6 +1,7 @@
 name: Frontend (Angular) CI
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'src/Frontend/coding-agent-dashboard/**'
@@ -37,6 +38,10 @@ jobs:
           cache: 'npm'
           cache-dependency-path: src/Frontend/coding-agent-dashboard/package-lock.json
 
+      - name: Setup Chrome
+        id: setup_chrome
+        uses: browser-actions/setup-chrome@v1
+
       - name: Install dependencies
         run: npm ci
 
@@ -44,6 +49,8 @@ jobs:
         run: npm run lint --if-present
 
       - name: Test
+        env:
+          CHROME_BIN: ${{ steps.setup_chrome.outputs.chrome-path }}
         run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage --no-progress
 
       - name: Build
