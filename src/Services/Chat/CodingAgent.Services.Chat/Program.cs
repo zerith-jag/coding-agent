@@ -2,6 +2,7 @@ using CodingAgent.Services.Chat.Api.Endpoints;
 using CodingAgent.Services.Chat.Api.Hubs;
 using CodingAgent.Services.Chat.Infrastructure.Persistence;
 using CodingAgent.SharedKernel.Infrastructure;
+using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
@@ -43,6 +44,9 @@ if (!string.IsNullOrEmpty(redisConnection))
 
 // SignalR
 builder.Services.AddSignalR();
+
+// FluentValidation - Register all validators from the Assembly
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // MassTransit + RabbitMQ
 builder.Services.AddMassTransit(x =>

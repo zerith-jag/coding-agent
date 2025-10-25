@@ -1,5 +1,6 @@
 using CodingAgent.Services.Chat.Domain.Entities;
 using CodingAgent.Services.Chat.Infrastructure.Persistence;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace CodingAgent.Services.Chat.Api.Endpoints;
@@ -26,7 +27,14 @@ public static class ConversationEndpoints
 
         group.MapPost("", CreateConversation)
             .WithName("CreateConversation")
-            .Produces<ConversationDto>(StatusCodes.Status201Created);
+            .Produces<ConversationDto>(StatusCodes.Status201Created)
+            .ProducesValidationProblem();
+
+        group.MapPut("{id:guid}", UpdateConversation)
+            .WithName("UpdateConversation")
+            .Produces<ConversationDto>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem();
 
         group.MapDelete("{id:guid}", DeleteConversation)
             .WithName("DeleteConversation")
@@ -71,8 +79,19 @@ public static class ConversationEndpoints
         return Results.Ok(dto);
     }
 
-    private static async Task<IResult> CreateConversation(CreateConversationRequest request, ChatDbContext db, ILogger<Program> logger, CancellationToken ct)
+    private static async Task<IResult> CreateConversation(
+        CreateConversationRequest request,
+        IValidator<CreateConversationRequest> validator,
+        ChatDbContext db,
+        ILogger<Program> logger,
+        CancellationToken ct)
     {
+        var validationResult = await validator.ValidateAsync(request, ct);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
         logger.LogInformation("Creating conversation: {Title}", request.Title);
 
         var userId = Guid.NewGuid(); // TODO: replace with authenticated user when auth is wired
@@ -89,6 +108,42 @@ public static class ConversationEndpoints
         };
 
         return Results.Created($"/conversations/{dto.Id}", dto);
+    }
+
+    private static async Task<IResult> UpdateConversation(
+        Guid id,
+        UpdateConversationRequest request,
+        IValidator<UpdateConversationRequest> validator,
+        ChatDbContext db,
+        ILogger<Program> logger,
+        CancellationToken ct)
+    {
+        var validationResult = await validator.ValidateAsync(request, ct);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        logger.LogInformation("Updating conversation {ConversationId}: {Title}", id, request.Title);
+        
+        var entity = await db.Conversations.FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (entity is null)
+        {
+            return Results.NotFound();
+        }
+
+        entity.UpdateTitle(request.Title);
+        await db.SaveChangesAsync(ct);
+
+        var dto = new ConversationDto
+        {
+            Id = entity.Id,
+            Title = entity.Title,
+            CreatedAt = entity.CreatedAt,
+            UpdatedAt = entity.UpdatedAt
+        };
+
+        return Results.Ok(dto);
     }
 
     private static async Task<IResult> DeleteConversation(Guid id, ChatDbContext db, ILogger<Program> logger, CancellationToken ct)
@@ -115,3 +170,8 @@ public record ConversationDto
 }
 
 public record CreateConversationRequest(string Title);
+
+public record UpdateConversationRequest(string Title);
+
+public record CreateMessageRequest(Guid ConversationId, string Content);
+
