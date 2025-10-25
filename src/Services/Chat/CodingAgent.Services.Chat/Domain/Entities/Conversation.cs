@@ -32,6 +32,16 @@ public class Conversation
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Hydrates the conversation with cached messages without updating timestamps.
+    /// Used when reconstructing conversation state from cache.
+    /// </summary>
+    internal void HydrateMessages(IEnumerable<Message> messages)
+    {
+        _messages.Clear();
+        _messages.AddRange(messages);
+    }
+
     public void UpdateTitle(string newTitle)
     {
         if (string.IsNullOrWhiteSpace(newTitle))

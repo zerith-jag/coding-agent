@@ -117,10 +117,10 @@ public class MessageCacheService : IMessageCacheService
             // Clear existing cache
             await db.KeyDeleteAsync(key);
 
-            // Take last 100 messages and add to sorted set
+            // Take last 100 messages and add to sorted set (ordered by ascending timestamps for consistent storage)
             var messagesToCache = messages
-                .OrderByDescending(m => m.SentAt)
-                .Take(MaxCachedMessages)
+                .OrderBy(m => m.SentAt)
+                .TakeLast(MaxCachedMessages)
                 .ToList();
 
             if (messagesToCache.Any())
@@ -269,7 +269,10 @@ public class MessageCacheService : IMessageCacheService
 
         public Message ToEntity()
         {
-            var role = Enum.Parse<MessageRole>(Role);
+            if (!Enum.TryParse<MessageRole>(Role, true, out var role))
+            {
+                throw new ArgumentException($"Invalid message role value in cache: '{Role}'", nameof(Role));
+            }
             return Message.FromCache(Id, ConversationId, UserId, Content, role, SentAt);
         }
     }

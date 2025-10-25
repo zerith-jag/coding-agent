@@ -26,10 +26,20 @@ public class Message
     }
 
     /// <summary>
-    /// Factory method to reconstruct a message from cached data
+    /// Factory method to reconstruct a message from cached data.
+    /// This method bypasses the primary constructor to avoid setting SentAt to DateTime.UtcNow,
+    /// preserving the original timestamp from cached data. Used only for hydrating messages
+    /// from cache where the original timestamp must be maintained.
     /// </summary>
     public static Message FromCache(Guid id, Guid conversationId, Guid? userId, string content, MessageRole role, DateTime sentAt)
     {
+        // Validate that sentAt is not in the future (basic sanity check)
+        // Allow 1 minute tolerance for clock skew
+        if (sentAt > DateTime.UtcNow.AddMinutes(1))
+        {
+            throw new ArgumentException("SentAt timestamp cannot be in the future", nameof(sentAt));
+        }
+
         return new Message
         {
             Id = id,

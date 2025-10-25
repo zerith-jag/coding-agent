@@ -43,11 +43,8 @@ public class ConversationRepository : IConversationRepository
         if (cachedMessages != null)
         {
             _logger.LogDebug("Using cached messages for conversation {ConversationId}", id);
-            // Add cached messages to conversation
-            foreach (var message in cachedMessages)
-            {
-                conversation.AddMessage(message);
-            }
+            // Hydrate cached messages directly without triggering business logic
+            conversation.HydrateMessages(cachedMessages);
         }
         else
         {
