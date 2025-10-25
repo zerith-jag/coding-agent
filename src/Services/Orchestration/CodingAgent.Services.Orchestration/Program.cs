@@ -7,20 +7,33 @@ using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database configuration
-var connectionString = builder.Configuration.GetConnectionString("OrchestrationDb")
-    ?? throw new InvalidOperationException("OrchestrationDb connection string is required");
+// Database configuration with in-memory fallback for dev/test
+var connectionString = builder.Configuration.GetConnectionString("OrchestrationDb");
 
 builder.Services.AddDbContext<OrchestrationDbContext>(options =>
-    options.UseNpgsql(connectionString));
+{
+    if (!string.IsNullOrWhiteSpace(connectionString))
+    {
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        options.UseInMemoryDatabase("OrchestrationDb");
+    }
+});
 
 // Health checks
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<OrchestrationDbContext>()
-    .AddNpgSql(
-    connectionString,
-        name: "postgresql",
-        tags: new[] { "db", "ready" });
+    .AddDbContextCheck<OrchestrationDbContext>();
+
+if (!string.IsNullOrWhiteSpace(connectionString))
+{
+    builder.Services.AddHealthChecks()
+        .AddNpgSql(
+            connectionString,
+            name: "postgresql",
+            tags: new[] { "db", "ready" });
+}
 
 // OpenTelemetry configuration
 var serviceName = "CodingAgent.Services.Orchestration";
@@ -83,17 +96,21 @@ app.MapGet("/", () => Results.Ok(new
 .WithName("Root")
 .ExcludeFromDescription();
 
-// Ensure database schema exists (dev/test convenience)
+// Apply EF Core migrations on startup when using a relational provider
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<OrchestrationDbContext>();
     try
     {
-        await db.Database.EnsureCreatedAsync();
+        if (db.Database.IsRelational())
+        {
+            await db.Database.MigrateAsync();
+        }
     }
-    catch
+    catch (Exception ex)
     {
-        // Ignore schema creation failures in scenarios where DB isn't reachable
+        app.Logger.LogError(ex, "Failed to apply OrchestrationDb migrations on startup");
+        // Keep the app running for dev/test; for production, consider rethrowing or failing fast
     }
 }
 

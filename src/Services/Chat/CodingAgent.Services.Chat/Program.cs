@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ChatDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("ChatDb");
-    if (!string.IsNullOrEmpty(connectionString))
+    if (!string.IsNullOrWhiteSpace(connectionString))
     {
         options.UseNpgsql(connectionString);
     }
@@ -105,17 +105,21 @@ app.MapHealthChecks("/health");
 // Prometheus metrics endpoint
 app.MapPrometheusScrapingEndpoint();
 
-// Ensure database schema exists (dev/test convenience)
+// Apply EF Core migrations on startup when using a relational provider
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
     try
     {
-        await db.Database.EnsureCreatedAsync();
+        if (db.Database.IsRelational())
+        {
+            await db.Database.MigrateAsync();
+        }
     }
-    catch
+    catch (Exception ex)
     {
-        // Ignore schema creation failures in scenarios where DB isn't reachable
+        app.Logger.LogError(ex, "Failed to apply ChatDb migrations on startup");
+        // Keep the app running for dev/test; for production, consider rethrowing or failing fast
     }
 }
 
