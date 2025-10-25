@@ -139,6 +139,25 @@ public class ConversationSearchTests
     }
 
     [Fact]
+    public async Task SearchConversations_WithSpecialCharacters_ShouldHandleGracefully()
+    {
+        // Arrange: Create a conversation
+        var uniqueId = Guid.NewGuid().ToString("N")[..8];
+        var title = $"Authentication & authorization {uniqueId}";
+        await _fixture.Client.PostAsJsonAsync("/conversations", new { title });
+
+        // Act: Search with special characters that need sanitization
+        var response = await _fixture.Client.GetAsync($"/conversations?q=authentication%20%26%20authorization%20{uniqueId}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var results = await response.Content.ReadFromJsonAsync<List<ConversationDto>>();
+        results.Should().NotBeNull();
+        // Should still find the conversation despite special characters
+        results!.Should().Contain(c => c.Title.Contains("Authentication", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task ListConversations_WithoutSearchParameter_ShouldReturnAll()
     {
         // Arrange: Create a conversation

@@ -12,9 +12,11 @@ public class ChatDbContextFactory : IDesignTimeDbContextFactory<ChatDbContext>
     {
         var optionsBuilder = new DbContextOptionsBuilder<ChatDbContext>();
         
-        // Use a dummy connection string for migrations
-        // The actual connection string will be provided at runtime
-        optionsBuilder.UseNpgsql("Host=localhost;Database=coding_agent;Username=postgres;Password=postgres");
+        // Try to get connection string from environment variable first, fall back to dummy for migrations
+        var connectionString = Environment.GetEnvironmentVariable("CHAT_DB_CONNECTION_STRING")
+            ?? "Host=localhost;Database=coding_agent;Username=postgres;Password=postgres";
+        
+        optionsBuilder.UseNpgsql(connectionString);
         
         return new ChatDbContext(optionsBuilder.Options);
     }

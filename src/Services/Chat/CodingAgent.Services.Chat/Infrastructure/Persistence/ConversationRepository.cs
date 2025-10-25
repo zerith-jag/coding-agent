@@ -58,7 +58,23 @@ public class ConversationRepository : IConversationRepository
         if (isPostgres)
         {
             // PostgreSQL full-text search
-            var searchTerms = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            // Sanitize input by removing special PostgreSQL full-text search operators
+            var sanitizedQuery = query
+                .Replace("&", " ")
+                .Replace("|", " ")
+                .Replace("!", " ")
+                .Replace("(", " ")
+                .Replace(")", " ")
+                .Replace(":", " ")
+                .Trim();
+            
+            var searchTerms = sanitizedQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (searchTerms.Length == 0)
+            {
+                // If query becomes empty after sanitization, return empty results
+                return Enumerable.Empty<Conversation>();
+            }
+            
             var searchQuery = string.Join(" & ", searchTerms);
             
             var conversations = await _context.Conversations
@@ -89,21 +105,28 @@ public class ConversationRepository : IConversationRepository
             // Fallback for in-memory database: simple LIKE search
             var searchTerms = query.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
             
-            // Search in conversation titles
-            var conversationsByTitle = _context.Conversations
-                .Where(c => searchTerms.Any(term => c.Title.ToLower().Contains(term)));
+            // Search in conversation titles - materialize IDs first
+            var conversationIdsByTitle = await _context.Conversations
+                .Where(c => searchTerms.Any(term => c.Title.ToLower().Contains(term)))
+                .Select(c => c.Id)
+                .ToListAsync(ct);
             
-            // Search in message content
-            var conversationIdsByMessage = _context.Messages
+            // Search in message content - materialize IDs first
+            var conversationIdsByMessage = await _context.Messages
                 .Where(m => searchTerms.Any(term => m.Content.ToLower().Contains(term)))
                 .Select(m => m.ConversationId)
-                .Distinct();
+                .Distinct()
+                .ToListAsync(ct);
             
-            // Combine results
+            // Combine IDs
+            var allConversationIds = conversationIdsByTitle
+                .Union(conversationIdsByMessage)
+                .ToHashSet();
+            
+            // Fetch conversations by IDs
             var conversations = await _context.Conversations
                 .Include(c => c.Messages)
-                .Where(c => conversationsByTitle.Select(x => x.Id).Contains(c.Id) || 
-                           conversationIdsByMessage.Contains(c.Id))
+                .Where(c => allConversationIds.Contains(c.Id))
                 .OrderByDescending(c => c.UpdatedAt)
                 .Take(100)
                 .ToListAsync(ct);
