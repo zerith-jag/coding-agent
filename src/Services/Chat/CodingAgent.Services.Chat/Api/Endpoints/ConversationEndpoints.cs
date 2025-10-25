@@ -1,6 +1,8 @@
 using CodingAgent.Services.Chat.Domain.Entities;
 using CodingAgent.Services.Chat.Domain.Repositories;
+using CodingAgent.SharedKernel.Results;
 using FluentValidation;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace CodingAgent.Services.Chat.Api.Endpoints;
@@ -18,7 +20,7 @@ public static class ConversationEndpoints
 
         group.MapGet("", GetConversations)
             .WithName("GetConversations")
-            .WithDescription("Retrieve all conversations ordered by most recently updated")
+            .WithDescription("Retrieve conversations with pagination support. Default page size: 50, Max page size: 100")
             .WithSummary("List conversations")
             .Produces<List<ConversationDto>>();
 
@@ -52,18 +54,62 @@ public static class ConversationEndpoints
             .Produces(StatusCodes.Status404NotFound);
     }
 
-    private static async Task<IResult> GetConversations(IConversationRepository repository, ILogger<Program> logger, CancellationToken ct)
+    private static async Task<IResult> GetConversations(
+        IConversationRepository repository, 
+        ILogger<Program> logger, 
+        HttpContext httpContext,
+        int page = 1, 
+        int pageSize = 50,
+        CancellationToken ct = default)
     {
-        logger.LogInformation("Getting conversations");
-        // TODO: Filter by authenticated user when auth is wired
-        var conversations = await repository.GetAllAsync(ct);
-        var items = conversations.Select(c => new ConversationDto
+        logger.LogInformation("Getting conversations (page: {Page}, pageSize: {PageSize})", page, pageSize);
+        
+        var pagination = new PaginationParameters(page, pageSize);
+        var pagedResult = await repository.GetPagedAsync(pagination, ct);
+        
+        var items = pagedResult.Items.Select(c => new ConversationDto
         {
             Id = c.Id,
             Title = c.Title,
             CreatedAt = c.CreatedAt,
             UpdatedAt = c.UpdatedAt
         }).ToList();
+
+        // Add pagination metadata to response headers
+        httpContext.Response.Headers["X-Total-Count"] = pagedResult.TotalCount.ToString();
+        httpContext.Response.Headers["X-Page-Number"] = pagedResult.PageNumber.ToString();
+        httpContext.Response.Headers["X-Page-Size"] = pagedResult.PageSize.ToString();
+        httpContext.Response.Headers["X-Total-Pages"] = pagedResult.TotalPages.ToString();
+
+        // Add HATEOAS links
+        var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}{httpContext.Request.Path}";
+        var links = new List<string>();
+
+        // First page link
+        links.Add($"<{baseUrl}?page=1&pageSize={pageSize}>; rel=\"first\"");
+
+        // Last page link
+        if (pagedResult.TotalPages > 0)
+        {
+            links.Add($"<{baseUrl}?page={pagedResult.TotalPages}&pageSize={pageSize}>; rel=\"last\"");
+        }
+
+        // Previous page link
+        if (pagedResult.HasPreviousPage)
+        {
+            links.Add($"<{baseUrl}?page={pagedResult.PageNumber - 1}&pageSize={pageSize}>; rel=\"prev\"");
+        }
+
+        // Next page link
+        if (pagedResult.HasNextPage)
+        {
+            links.Add($"<{baseUrl}?page={pagedResult.PageNumber + 1}&pageSize={pageSize}>; rel=\"next\"");
+        }
+
+        if (links.Any())
+        {
+            httpContext.Response.Headers["Link"] = string.Join(", ", links);
+        }
 
         return Results.Ok(items);
     }

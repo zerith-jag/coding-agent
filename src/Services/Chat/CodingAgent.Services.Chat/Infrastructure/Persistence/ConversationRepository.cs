@@ -1,5 +1,6 @@
 using CodingAgent.Services.Chat.Domain.Entities;
 using CodingAgent.Services.Chat.Domain.Repositories;
+using CodingAgent.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
 
 namespace CodingAgent.Services.Chat.Infrastructure.Persistence;
@@ -35,6 +36,24 @@ public class ConversationRepository : IConversationRepository
             .OrderByDescending(c => c.UpdatedAt)
             .Take(100)
             .ToListAsync(ct);
+    }
+
+    public async Task<PagedResult<Conversation>> GetPagedAsync(PaginationParameters pagination, CancellationToken ct = default)
+    {
+        _logger.LogDebug("Fetching conversations page {PageNumber} with size {PageSize}", 
+            pagination.PageNumber, pagination.PageSize);
+
+        var query = _context.Conversations
+            .OrderByDescending(c => c.UpdatedAt);
+
+        var totalCount = await query.CountAsync(ct);
+
+        var items = await query
+            .Skip(pagination.Skip)
+            .Take(pagination.Take)
+            .ToListAsync(ct);
+
+        return new PagedResult<Conversation>(items, totalCount, pagination.PageNumber, pagination.PageSize);
     }
 
     public async Task<IEnumerable<Conversation>> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
