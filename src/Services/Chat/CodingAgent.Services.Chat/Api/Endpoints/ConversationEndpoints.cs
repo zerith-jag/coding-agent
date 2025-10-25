@@ -1,5 +1,5 @@
 using CodingAgent.Services.Chat.Domain.Entities;
-using CodingAgent.Services.Chat.Infrastructure.Persistence;
+using CodingAgent.Services.Chat.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace CodingAgent.Services.Chat.Api.Endpoints;
@@ -34,28 +34,26 @@ public static class ConversationEndpoints
             .Produces(StatusCodes.Status404NotFound);
     }
 
-    private static async Task<IResult> GetConversations(ChatDbContext db, ILogger<Program> logger, CancellationToken ct)
+    private static async Task<IResult> GetConversations(IConversationRepository repository, ILogger<Program> logger, CancellationToken ct)
     {
         logger.LogInformation("Getting conversations");
-        var items = await db.Conversations
-            .OrderByDescending(c => c.UpdatedAt)
-            .Take(100)
-            .Select(c => new ConversationDto
-            {
-                Id = c.Id,
-                Title = c.Title,
-                CreatedAt = c.CreatedAt,
-                UpdatedAt = c.UpdatedAt
-            })
-            .ToListAsync(ct);
+        // TODO: Filter by authenticated user when auth is wired
+        var conversations = await repository.GetAllAsync(ct);
+        var items = conversations.Select(c => new ConversationDto
+        {
+            Id = c.Id,
+            Title = c.Title,
+            CreatedAt = c.CreatedAt,
+            UpdatedAt = c.UpdatedAt
+        }).ToList();
 
         return Results.Ok(items);
     }
 
-    private static async Task<IResult> GetConversation(Guid id, ChatDbContext db, ILogger<Program> logger, CancellationToken ct)
+    private static async Task<IResult> GetConversation(Guid id, IConversationRepository repository, ILogger<Program> logger, CancellationToken ct)
     {
         logger.LogInformation("Getting conversation {ConversationId}", id);
-        var entity = await db.Conversations.FirstOrDefaultAsync(c => c.Id == id, ct);
+        var entity = await repository.GetByIdAsync(id, ct);
         if (entity is null)
         {
             return Results.NotFound();
@@ -71,14 +69,13 @@ public static class ConversationEndpoints
         return Results.Ok(dto);
     }
 
-    private static async Task<IResult> CreateConversation(CreateConversationRequest request, ChatDbContext db, ILogger<Program> logger, CancellationToken ct)
+    private static async Task<IResult> CreateConversation(CreateConversationRequest request, IConversationRepository repository, ILogger<Program> logger, CancellationToken ct)
     {
         logger.LogInformation("Creating conversation: {Title}", request.Title);
 
         var userId = Guid.NewGuid(); // TODO: replace with authenticated user when auth is wired
         var entity = new Conversation(userId, request.Title);
-        db.Conversations.Add(entity);
-        await db.SaveChangesAsync(ct);
+        await repository.CreateAsync(entity, ct);
 
         var dto = new ConversationDto
         {
@@ -91,16 +88,15 @@ public static class ConversationEndpoints
         return Results.Created($"/conversations/{dto.Id}", dto);
     }
 
-    private static async Task<IResult> DeleteConversation(Guid id, ChatDbContext db, ILogger<Program> logger, CancellationToken ct)
+    private static async Task<IResult> DeleteConversation(Guid id, IConversationRepository repository, ILogger<Program> logger, CancellationToken ct)
     {
         logger.LogInformation("Deleting conversation {ConversationId}", id);
-        var entity = await db.Conversations.FirstOrDefaultAsync(c => c.Id == id, ct);
+        var entity = await repository.GetByIdAsync(id, ct);
         if (entity is null)
         {
             return Results.NotFound();
         }
-        db.Conversations.Remove(entity);
-        await db.SaveChangesAsync(ct);
+        await repository.DeleteAsync(id, ct);
         return Results.NoContent();
     }
 }
