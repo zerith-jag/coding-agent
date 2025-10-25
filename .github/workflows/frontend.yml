@@ -51,7 +51,7 @@ jobs:
       - name: Test
         env:
           CHROME_BIN: ${{ steps.setup_chrome.outputs.chrome-path }}
-        run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage --no-progress
+        run: npm test -- --watch=false --browsers=ChromeHeadlessCI --code-coverage --no-progress
 
       - name: Build
         run: npm run build -- --configuration=production
