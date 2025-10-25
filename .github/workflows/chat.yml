@@ -45,12 +45,10 @@ jobs:
       - name: Conditional Docker build
         run: |
           set -e
-          CTX=""
-          if [ -f src/Services/Chat/CodingAgent.Services.Chat/Dockerfile ]; then CTX=src/Services/Chat/CodingAgent.Services.Chat; fi
-          if [ -z "$CTX" ] && [ -f src/Services/Chat/Dockerfile ]; then CTX=src/Services/Chat; fi
-          if [ -n "$CTX" ]; then
-            echo "Dockerfile found in $CTX. Building image..."
-            docker build "$CTX" -t ghcr.io/${{ github.repository }}/chat:${{ github.sha }}
+          if [ -f src/Services/Chat/CodingAgent.Services.Chat/Dockerfile ]; then
+            echo "Dockerfile found. Building image from repository root..."
+            REPO=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+            docker build -f src/Services/Chat/CodingAgent.Services.Chat/Dockerfile -t ghcr.io/$REPO/chat:$GITHUB_SHA .
           else
             echo "No Dockerfile found for Chat. Skipping docker build."
           fi

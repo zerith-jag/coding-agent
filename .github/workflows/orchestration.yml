@@ -45,12 +45,10 @@ jobs:
       - name: Conditional Docker build
         run: |
           set -e
-          CTX=""
-          if [ -f src/Services/Orchestration/CodingAgent.Services.Orchestration/Dockerfile ]; then CTX=src/Services/Orchestration/CodingAgent.Services.Orchestration; fi
-          if [ -z "$CTX" ] && [ -f src/Services/Orchestration/Dockerfile ]; then CTX=src/Services/Orchestration; fi
-          if [ -n "$CTX" ]; then
-            echo "Dockerfile found in $CTX. Building image..."
-            docker build "$CTX" -t ghcr.io/${{ github.repository }}/orchestration:${{ github.sha }}
+          if [ -f src/Services/Orchestration/CodingAgent.Services.Orchestration/Dockerfile ]; then
+            echo "Dockerfile found. Building image from repository root..."
+            REPO=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+            docker build -f src/Services/Orchestration/CodingAgent.Services.Orchestration/Dockerfile -t ghcr.io/$REPO/orchestration:$GITHUB_SHA .
           else
             echo "No Dockerfile found for Orchestration. Skipping docker build."
           fi
