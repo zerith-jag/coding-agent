@@ -113,8 +113,11 @@ docker compose ps
 | **PostgreSQL** | `localhost:5432` | user: `codingagent`<br>password: `devPassword123!` |
 | **Redis** | `localhost:6379` | password: `devPassword123!` |
 | **RabbitMQ Management** | http://localhost:15672 | user: `codingagent`<br>password: `devPassword123!` |
+| **RabbitMQ Prometheus** | http://localhost:15692 | No auth (metrics) |
 | **Grafana** | http://localhost:3000 | user: `admin`<br>password: `admin` |
 | **Prometheus** | http://localhost:9090 | No auth |
+| **PostgreSQL Exporter** | http://localhost:9187 | No auth (metrics) |
+| **Redis Exporter** | http://localhost:9121 | No auth (metrics) |
 | **Jaeger UI** | http://localhost:16686 | No auth |
 | **Seq** | http://localhost:5341 | No auth (first run) |
 
@@ -229,21 +232,72 @@ container_memory_usage_bytes{service=~".*-service"}
 **Features**:
 - Pre-configured Prometheus datasource
 - Jaeger integration for traces
-- Import/export dashboards
+- Auto-provisioned dashboards for Coding Agent services
 
 **URL**: http://localhost:3000
 
-**First-Time Setup**:
-1. Login with `admin/admin`
-2. Change password (prompted)
-3. Navigate to Dashboards → Import
-4. Import dashboard by ID or JSON
+**Credentials**:
+- **Username**: `admin`
+- **Password**: `admin` (change on first login)
 
-**Recommended Dashboards**:
+**Pre-configured Dashboards**:
+
+All dashboards are automatically provisioned on startup and available in the "Coding Agent" folder:
+
+1. **System Health** (`system-health`)
+   - CPU, memory, disk usage
+   - Container status and uptime
+   - Network I/O metrics
+   - Container restarts monitoring
+
+2. **API Gateway (YARP)** (`api-gateway`)
+   - Request rate and error rate
+   - Latency percentiles (P50, P95, P99)
+   - Circuit breaker state and events
+   - Rate limiting counters
+
+3. **Backend Services** (`backend-services`)
+   - Per-service request rate and errors
+   - Service-level latency metrics
+   - EF Core database command duration
+   - MassTransit consumer metrics and queue depth
+   - Filter by service using dropdown
+
+4. **Database (PostgreSQL)** (`database-postgresql`)
+   - Active connections and cache hit ratio
+   - Transaction rate and table operations
+   - Slow queries (>100ms)
+   - Database size and bloat metrics
+   - Lock monitoring
+
+5. **Cache (Redis)** (`cache-redis`)
+   - Cache hit ratio and operations/sec
+   - Memory usage and evictions
+   - Command latency (GET/SET)
+   - Connected clients and key count
+   - Network I/O
+
+**Accessing Dashboards**:
+1. Navigate to http://localhost:3000
+2. Login with credentials above
+3. Go to **Dashboards** → **Browse** → **Coding Agent** folder
+4. Select any dashboard to view real-time metrics
+
+**Dashboard Locations**:
+```
+deployment/docker-compose/grafana/provisioning/dashboards/
+├── dashboards.yml              # Provisioning configuration
+├── system-health.json          # System metrics
+├── api-gateway.json            # Gateway metrics
+├── backend-services.json       # Microservices metrics
+├── database-postgresql.json    # PostgreSQL metrics
+└── cache-redis.json            # Redis metrics
+```
+
+**Additional Community Dashboards** (optional):
 - Node Exporter Full (ID: 1860)
 - Docker Monitoring (ID: 893)
 - RabbitMQ Overview (ID: 10991)
-- PostgreSQL Database (ID: 9628)
 
 ### Jaeger Tracing
 
