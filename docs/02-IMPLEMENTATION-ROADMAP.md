@@ -202,19 +202,22 @@ Production-ready infrastructure: Gateway, Auth, Databases, Message Bus, Observab
 
 - [x] Instrument custom metrics (task duration, queue depth) ✅
 - [x] Configure Prometheus scraping endpoints on all services ✅
-- [ ] Create Grafana dashboards (5 dashboards: system, API, services, database, cache)
-- [ ] Setup alerting rules (high error rate, high latency)
+- [x] Create Grafana dashboards (5 dashboards: system, API, services, database, cache) ✅
+- [x] Setup alerting rules (high error rate, high latency) ✅
 
-- **Deliverable**: Real-time metrics visible in Grafana (metrics ready, dashboards pending)
+- **Deliverable**: Real-time metrics visible in Grafana ✅
 
-   Tracking: #78, #79
+   Tracking: #78, #79, #80 (PR #80 merged Oct 25, 2025)
 
 **Progress notes (Oct 25, 2025):**
 - ✅ OpenTelemetry SDK configured across Gateway, Chat, and Orchestration services
 - ✅ Traces include Activity API spans for database operations, HTTP calls, and event publishing
 - ✅ Correlation IDs propagated via `X-Correlation-Id` header and Activity tags
 - ✅ Prometheus metrics exported on `/metrics` endpoint (ASP.NET Core + custom instrumentation)
-- ⏳ Grafana provisioning files created in `deployment/docker-compose/grafana/`, dashboard JSON pending
+- ✅ Grafana provisioning complete with 6 dashboards (system, API, services, database, cache, alerts)
+- ✅ **Alert rules deployed**: 21 alerts across API, infrastructure, and message bus (PR #80)
+- ✅ **Alertmanager configured**: Routing, grouping, and inhibition rules set up
+- ✅ **Runbooks created**: 5 detailed operational runbooks with diagnosis and resolution steps
 - ⏳ Jaeger configured to receive OTLP traces, UI container deployment in docker-compose pending
 
 ---
