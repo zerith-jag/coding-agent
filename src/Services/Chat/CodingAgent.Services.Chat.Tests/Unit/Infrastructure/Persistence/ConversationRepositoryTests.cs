@@ -10,7 +10,7 @@ using Xunit;
 namespace CodingAgent.Services.Chat.Tests.Unit.Infrastructure.Persistence;
 
 [Trait("Category", "Unit")]
-public class ConversationRepositoryTests
+public class ConversationRepositoryTests : IDisposable
 {
     private readonly ChatDbContext _context;
     private readonly ConversationRepository _repository;
