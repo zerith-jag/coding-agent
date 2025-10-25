@@ -67,9 +67,7 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": ""
         },
         "showThresholdLabels": false,
@@ -82,7 +80,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "100 - (avg(rate(container_cpu_usage_seconds_total{name=~\"coding-agent-.*\"}[5m])) * 100)",
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
           "refId": "A"
         }
       ],
@@ -134,9 +132,7 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": ""
         },
         "showThresholdLabels": false,
@@ -149,7 +145,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(sum(container_memory_usage_bytes{name=~\"coding-agent-.*\"}) / sum(container_spec_memory_limit_bytes{name=~\"coding-agent-.*\"})) * 100",
+          "expr": "((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes) * 100",
           "refId": "A"
         }
       ],
@@ -235,8 +231,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(container_fs_writes_total{name=~\"coding-agent-.*\"}[5m])) by (name)",
-          "legendFormat": "{{name}} - Write",
+          "expr": "sum(rate(node_disk_written_bytes_total[5m])) by (device)",
+          "legendFormat": "Write {{device}}",
           "refId": "A"
         },
         {
@@ -244,8 +240,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(container_fs_reads_total{name=~\"coding-agent-.*\"}[5m])) by (name)",
-          "legendFormat": "{{name}} - Read",
+          "expr": "sum(rate(node_disk_read_bytes_total[5m])) by (device)",
+          "legendFormat": "Read {{device}}",
           "refId": "B"
         }
       ],
@@ -309,9 +305,7 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": ""
         },
         "textMode": "auto"
@@ -396,10 +390,7 @@
       "id": 5,
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table",
           "placement": "right",
           "showLegend": true
@@ -415,8 +406,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(container_network_receive_bytes_total{name=~\"coding-agent-.*\"}[5m])) by (name)",
-          "legendFormat": "{{name}} - RX",
+          "expr": "sum(rate(node_network_receive_bytes_total{device!~\"lo\"}[5m])) by (device)",
+          "legendFormat": "{{device}} - RX",
           "refId": "A"
         },
         {
@@ -424,8 +415,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(container_network_transmit_bytes_total{name=~\"coding-agent-.*\"}[5m])) by (name)",
-          "legendFormat": "{{name}} - TX",
+          "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo\"}[5m])) by (device)",
+          "legendFormat": "{{device}} - TX",
           "refId": "B"
         }
       ],
@@ -495,10 +486,7 @@
       "id": 6,
       "options": {
         "legend": {
-          "calcs": [
-            "mean",
-            "max"
-          ],
+          "calcs": ["mean", "max"],
           "displayMode": "table",
           "placement": "right",
           "showLegend": true
@@ -514,8 +502,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(time() - container_start_time_seconds{name=~\"coding-agent-.*\"})",
-          "legendFormat": "{{name}}",
+          "expr": "time() - process_start_time_seconds{job=~\"prometheus|grafana|cadvisor|node-exporter\"}",
+          "legendFormat": "{{job}}",
           "refId": "A"
         }
       ],
@@ -526,11 +514,7 @@
   "refresh": "10s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": [
-    "system",
-    "health",
-    "infrastructure"
-  ],
+  "tags": ["system", "health", "infrastructure"],
   "templating": {
     "list": []
   },

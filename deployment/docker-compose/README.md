@@ -86,7 +86,7 @@ docker compose logs -f
 
 # Check service status
 docker compose ps
-```
+
 
 ### 4. Verify Services
 
@@ -360,7 +360,7 @@ Override at runtime with environment variables:
    # Via Gateway (recommended - shows full trace)
    curl http://localhost:5000/api/chat/ping
    curl http://localhost:5000/api/orchestration/ping
-   
+
    # Direct to services
    curl http://localhost:5001/health  # Chat service
    curl http://localhost:5002/health  # Orchestration service
@@ -374,12 +374,12 @@ Override at runtime with environment variables:
 
 **Troubleshooting**:
 
-- **No traces appearing**: 
+- **No traces appearing**:
   - Check service logs: `docker compose logs gateway chat orchestration`
   - Verify Jaeger is healthy: `curl http://localhost:14269/`
   - Ensure OpenTelemetry endpoint is configured correctly in service appsettings
-  
-- **Traces missing correlation**: 
+
+- **Traces missing correlation**:
   - Verify Gateway is propagating correlation ID headers
   - Check that downstream services are instrumented with ASP.NET Core instrumentation
 
@@ -731,6 +731,6 @@ docker exec coding-agent-redis redis-cli -a "$REDIS_PASSWORD" INFO memory
 
 ---
 
-**Last Updated**: October 24, 2025  
-**Version**: 1.0.0  
+**Last Updated**: October 24, 2025
+**Version**: 1.0.0
 **Maintainer**: Coding Agent Team

@@ -1,0 +1,39 @@
+# Global Docker ignore to speed up builds and improve caching
+# VCS
+.git
+.github
+.gitignore
+.gitattributes
+
+# IDE / Editor
+**/.vs/
+**/.vscode/
+**/.idea/
+
+# .NET build outputs
+**/bin/
+**/obj/
+**/TestResults/
+
+# Node/Angular
+**/node_modules/
+**/dist/
+**/.angular/
+
+# Python
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/coverage/
+
+# Others
+**/.DS_Store
+**/*.user
+**/*.suo
+**/*.log
+**/.scannerwork/
+**/.sonar/
+.trunk/

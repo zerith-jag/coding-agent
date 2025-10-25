@@ -32,6 +32,11 @@ jobs:
         run: |
           docker compose -f deployment/docker-compose/docker-compose.yml config -q
 
+      - name: Validate dev apps compose config (merged with infra)
+        if: ${{ hashFiles('deployment/docker-compose/docker-compose.yml') != '' && hashFiles('deployment/docker-compose/docker-compose.apps.dev.yml') != '' }}
+        run: |
+          docker compose -f deployment/docker-compose/docker-compose.yml -f deployment/docker-compose/docker-compose.apps.dev.yml config -q
+
       - name: Skip (no compose file found)
         if: ${{ hashFiles('deployment/docker-compose/docker-compose.yml') == '' }}
         run: |

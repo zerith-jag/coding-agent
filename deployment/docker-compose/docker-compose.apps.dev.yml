@@ -1,0 +1,260 @@
+# ============================================
+# Dev Apps Docker Compose (Hot Reload)
+# Coding Agent - Application Services (no infra)
+#
+# Usage (from repo root):
+#   docker compose -f deployment/docker-compose/docker-compose.yml -f deployment/docker-compose/docker-compose.apps.dev.yml up --build
+#
+# This runs app services with hot reload:
+# - .NET services via `dotnet watch`
+# - Python FastAPI via `uvicorn --reload`
+# - Angular UI via `ng serve`
+# Caches: nuget, pip, npm persisted via named volumes
+# ============================================
+
+volumes:
+  nuget-packages:
+  pip-cache:
+  npm-cache:
+
+networks:
+  coding-agent:
+    # When used together with infra compose (-f both files), this will be merged.
+    # If you run this file alone, a new network will be created.
+    driver: bridge
+
+services:
+  # ==========================================
+  # Gateway (YARP)
+  # ==========================================
+  gateway:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    container_name: coding-agent-gateway-dev
+    working_dir: /workspace/src/Gateway/CodingAgent.Gateway
+    command: >-
+      bash -lc "dotnet restore && dotnet watch run --no-restore --urls http://0.0.0.0:5000"
+    ports:
+      - "5000:5000"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://0.0.0.0:5000"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      Redis__Connection: "redis:6379,password=${REDIS_PASSWORD:-devPassword123!}"
+      OpenTelemetry__Endpoint: "http://jaeger:4317"
+    volumes:
+      - ../../:/workspace
+      - nuget-packages:/root/.nuget/packages
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - coding-agent
+
+  # ==========================================
+  # Chat Service
+  # ==========================================
+  chat-service:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    container_name: coding-agent-chat-dev
+    working_dir: /workspace/src/Services/Chat/CodingAgent.Services.Chat
+    command: >-
+      bash -lc "dotnet restore && dotnet watch run --no-restore --urls http://0.0.0.0:5001"
+    ports:
+      - "5001:5001"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://0.0.0.0:5001"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      ConnectionStrings__ChatDb: "Host=postgres;Database=codingagent;Username=${POSTGRES_USER:-codingagent};Password=${POSTGRES_PASSWORD:-devPassword123!}"
+      Redis__Connection: "redis:6379,password=${REDIS_PASSWORD:-devPassword123!}"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER:-codingagent}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-devPassword123!}
+      OpenTelemetry__Endpoint: "http://jaeger:4317"
+    volumes:
+      - ../../:/workspace
+      - nuget-packages:/root/.nuget/packages
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - coding-agent
+
+  # ==========================================
+  # Orchestration Service
+  # ==========================================
+  orchestration-service:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    container_name: coding-agent-orchestration-dev
+    working_dir: /workspace/src/Services/Orchestration/CodingAgent.Services.Orchestration
+    command: >-
+      bash -lc "dotnet restore && dotnet watch run --no-restore --urls http://0.0.0.0:5002"
+    ports:
+      - "5002:5002"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://0.0.0.0:5002"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER:-codingagent}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-devPassword123!}
+      Services__MLClassifier__BaseUrl: "http://ml-classifier:8000"
+      OpenTelemetry__Endpoint: "http://jaeger:4317"
+    volumes:
+      - ../../:/workspace
+      - nuget-packages:/root/.nuget/packages
+    depends_on:
+      - rabbitmq
+      - ml-classifier
+    networks:
+      - coding-agent
+
+  # ==========================================
+  # GitHub Service
+  # ==========================================
+  github-service:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    container_name: coding-agent-github-dev
+    working_dir: /workspace/src/Services/GitHub/CodingAgent.Services.GitHub
+    command: >-
+      bash -lc "dotnet restore && dotnet watch run --no-restore --urls http://0.0.0.0:5004"
+    ports:
+      - "5004:5004"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://0.0.0.0:5004"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER:-codingagent}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-devPassword123!}
+      OpenTelemetry__Endpoint: "http://jaeger:4317"
+    volumes:
+      - ../../:/workspace
+      - nuget-packages:/root/.nuget/packages
+    depends_on:
+      - rabbitmq
+    networks:
+      - coding-agent
+
+  # ==========================================
+  # Browser Service
+  # ==========================================
+  browser-service:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    container_name: coding-agent-browser-dev
+    working_dir: /workspace/src/Services/Browser/CodingAgent.Services.Browser
+    command: >-
+      bash -lc "dotnet restore && dotnet watch run --no-restore --urls http://0.0.0.0:5005"
+    ports:
+      - "5005:5005"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://0.0.0.0:5005"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER:-codingagent}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-devPassword123!}
+      OpenTelemetry__Endpoint: "http://jaeger:4317"
+    volumes:
+      - ../../:/workspace
+      - nuget-packages:/root/.nuget/packages
+    depends_on:
+      - rabbitmq
+    networks:
+      - coding-agent
+
+  # ==========================================
+  # CI/CD Monitor Service
+  # ==========================================
+  cicd-monitor-service:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    container_name: coding-agent-cicd-monitor-dev
+    working_dir: /workspace/src/Services/CICDMonitor/CodingAgent.Services.CICDMonitor
+    command: >-
+      bash -lc "dotnet restore && dotnet watch run --no-restore --urls http://0.0.0.0:5006"
+    ports:
+      - "5006:5006"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://0.0.0.0:5006"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER:-codingagent}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-devPassword123!}
+      OpenTelemetry__Endpoint: "http://jaeger:4317"
+    volumes:
+      - ../../:/workspace
+      - nuget-packages:/root/.nuget/packages
+    depends_on:
+      - rabbitmq
+    networks:
+      - coding-agent
+
+  # ==========================================
+  # Dashboard BFF (Server)
+  # ==========================================
+  dashboard-bff:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    container_name: coding-agent-dashboard-bff-dev
+    working_dir: /workspace/src/Services/Dashboard/CodingAgent.Services.Dashboard
+    command: >-
+      bash -lc "dotnet restore && dotnet watch run --no-restore --urls http://0.0.0.0:5007"
+    ports:
+      - "5007:5007"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://0.0.0.0:5007"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      OpenTelemetry__Endpoint: "http://jaeger:4317"
+    volumes:
+      - ../../:/workspace
+      - nuget-packages:/root/.nuget/packages
+    networks:
+      - coding-agent
+
+  # ==========================================
+  # ML Classifier (FastAPI)
+  # ==========================================
+  ml-classifier:
+    image: python:3.12-slim
+    container_name: coding-agent-ml-classifier-dev
+    working_dir: /app
+    command: >-
+      bash -lc "pip install --upgrade pip && \
+      (test -f requirements.txt && pip install -r requirements.txt || true) && \
+      pip install uvicorn[standard] && \
+      uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4318"
+    volumes:
+      - ../../src/Services/MLClassifier/ml_classifier_service:/app
+      - pip-cache:/root/.cache/pip
+    networks:
+      - coding-agent
+
+  # ==========================================
+  # Dashboard UI (Angular)
+  # ==========================================
+  dashboard-ui:
+    image: node:20
+    container_name: coding-agent-dashboard-ui-dev
+    working_dir: /workspace
+    command: >-
+      bash -lc "npm ci && npx ng serve --host 0.0.0.0 --port 4200 --poll 500"
+    ports:
+      - "4200:4200"
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ../../src/Frontend/coding-agent-dashboard:/workspace
+      - npm-cache:/root/.npm
+    networks:
+      - coding-agent
+
+  # (No infra services here; run together with infra compose via -f)

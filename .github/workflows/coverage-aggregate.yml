@@ -1,0 +1,92 @@
+name: Coverage Aggregate
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'src/**'
+      - '.github/workflows/coverage-aggregate.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'src/**'
+      - '.github/workflows/coverage-aggregate.yml'
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  aggregate:
+    name: Build, test, and merge coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore .NET
+        run: dotnet restore CodingAgent.sln
+
+      - name: Test .NET with coverage (Cobertura)
+        run: |
+          dotnet test CodingAgent.sln \
+            --logger "trx" \
+            --collect:"XPlat Code Coverage"
+
+      - name: Find .NET Cobertura files
+        id: find_cobertura
+        shell: bash
+        run: |
+          mapfile -t files < <(ls -1 src/**/TestResults/*/coverage.cobertura.xml 2>/dev/null || true)
+          echo "Found ${#files[@]} Cobertura files"
+          printf 'files<<EOF\n%s\nEOF\n' "${files[*]}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python test deps
+        working-directory: src/Services/MLClassifier/ml_classifier_service
+        run: |
+          pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest pytest-cov
+
+      - name: Run Python tests with coverage (Cobertura XML)
+        working-directory: src/Services/MLClassifier/ml_classifier_service
+        run: |
+          pytest -q --maxfail=1 --disable-warnings \
+            --cov=. --cov-report=xml:coverage-python.xml
+
+      - name: Merge coverage with ReportGenerator
+        uses: danielpalme/ReportGenerator-GitHub-Action@v5
+        with:
+          reports: 'src/**/TestResults/**/coverage.cobertura.xml;src/Services/MLClassifier/ml_classifier_service/coverage-python.xml'
+          targetdir: coverage-merged
+          reporttypes: 'Cobertura;HtmlSummary;MarkdownSummaryGithub'
+          assemblyfilters: '+*'
+          classfilters: '+*'
+
+      - name: Publish merged Cobertura to summary
+        shell: bash
+        run: |
+          if [ -f coverage-merged/SummaryGithub.md ]; then
+            cat coverage-merged/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload merged coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-merged
+          path: |
+            coverage-merged/
+          if-no-files-found: warn

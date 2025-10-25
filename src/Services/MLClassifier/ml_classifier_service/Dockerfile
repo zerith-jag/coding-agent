@@ -1,5 +1,7 @@
 # Multi-stage build for Python ML Classifier Service
+# syntax=docker/dockerfile:1.6
 FROM python:3.12-slim AS base
+ARG BUILDKIT_INLINE_CACHE=1
 
 # Set working directory
 WORKDIR /app
@@ -12,8 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies with BuildKit cache for pip
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
 
 # Copy application code
 COPY . .

@@ -12,38 +12,18 @@
 ## 🎯 Current Sprint Status
 
 **Phase 1 Infrastructure Complete!** All major infrastructure components delivered:
-- ✅ Gateway with YARP routing, JWT auth, CORS, Polly resilience, rate limiting
-- ✅ PostgreSQL multi-schema setup with EF Core migrations (Chat, Orchestration)
-- ✅ MassTransit + RabbitMQ message bus wired across services
-- ✅ SharedKernel infrastructure extensions (DB, RabbitMQ, Health Checks)
-- ✅ Testcontainers integration tests with Docker fallback
-- ✅ Angular 20.3 dashboard scaffolded with SignalR + Material Design
+- ✅ Gateway with YARP routing, JWT auth, CORS, Polly resilience, and distributed rate limiting (Redis)
+- ✅ PostgreSQL schemas with EF Core migrations (Chat, Orchestration) and startup migration helpers
+- ✅ MassTransit + RabbitMQ wired in services with SharedKernel configuration extensions
+- ✅ SharedKernel infrastructure extensions (DbContext migrations, RabbitMQ host/health)
+- ✅ Testcontainers-based integration tests with Docker fallback (Chat service)
+- ✅ Angular 20.3 dashboard scaffold (Material + SignalR dep)
+- ✅ Observability stack configured end-to-end (OpenTelemetry → Prometheus/Grafana/Jaeger + Seq)
 
-**Next Up**: Chat service REST API implementation (Phase 2, Week 7-8)
-
----
-
-## 📊 Recent Milestones (Oct 24-25, 2025)
-
-**9 Pull Requests Merged in 24 Hours** - Completing Phase 1 Infrastructure:
-
-| PR | Feature | Status | Impact |
-|----|---------|--------|--------|
-| #75 | Angular 20.3 Dashboard Scaffold | ✅ Merged | Frontend shell with SignalR, Material Design, routing |
-| #74 | MassTransit + RabbitMQ + SharedKernel Extensions | ✅ Merged | Event-driven messaging across all services, code duplication eliminated |
-| #73 | DB Credentials Fix + In-Memory Fallback | ✅ Merged | Tests pass without Docker, secure configuration |
-| #72 | PostgreSQL Multi-Schema Setup | ✅ Merged | Chat and Orchestration schemas with EF Core migrations |
-| #70 | Testcontainers Integration | ✅ Merged | Automated PostgreSQL + RabbitMQ setup for integration tests |
-| #69 | YARP Routes for All Services | ✅ Merged | Gateway routing to 8 microservices |
-| #68 | Redis-Backed Rate Limiting | ✅ Merged | Distributed rate limiting (1000 req/hr per user) |
-| #67 | Polly Resilience Policies | ✅ Merged | Circuit breaker + retry with exponential backoff |
-| #66 | CORS Configuration | ✅ Merged | Configurable origin policies for dev/prod |
-
-**Key Achievements:**
-- ✅ SharedKernel infrastructure patterns established (DbContext, RabbitMQ, Health Checks)
-- ✅ All 46 tests passing consistently (100% pass rate maintained through refactoring)
-- ✅ Zero-downtime deployment foundation ready (health checks, graceful shutdown)
-- ✅ Observability stack configured (OpenTelemetry, Prometheus, structured logging)
+Next up: Phase 2 — Core services implementation focus
+- Chat: harden REST API (validation, auth), add pagination/search; finalize SignalR auth
+- Orchestration: domain model + strategy implementations
+- ML Classifier: integrate heuristic API with Orchestration; prep ML stage
 
 ---
 
@@ -115,110 +95,87 @@ Production-ready infrastructure: Gateway, Auth, Databases, Message Bus, Observab
 ### Week 3: Infrastructure Setup
 
 **Days 1-2: Docker Compose Stack**
-- [x] Create `docker-compose.microservices.yml` (PR #43 merged)
-- [x] PostgreSQL with 8 schemas (one per service)
-- [x] Redis cluster configuration
-- [x] RabbitMQ with management console
-- [x] Prometheus + Grafana + Jaeger setup
-- **Deliverable**: `docker compose up` starts full stack ✅
+- ✅ Create `docker-compose.yml` stack (PostgreSQL, Redis, RabbitMQ, Prometheus, Grafana, Jaeger, Seq)
+- ✅ PostgreSQL service configured with init script and healthcheck
+- ✅ Redis service with AOF and healthcheck
+- ✅ RabbitMQ with management UI and Prometheus plugin
+- ✅ Prometheus + Alertmanager + Grafana provisioning and dashboards
+- ✅ Jaeger all-in-one with OTLP enabled
+- ✅ Seq for structured logs
+- **Deliverable**: `docker compose up` starts full observability + infra stack
 
 **Days 3-4: Database Migrations**
-- [x] Setup EF Core migrations per service (Chat, Orchestration complete - PRs #72, #73, #74)
-- [x] Create `chat` schema (conversations, messages tables)
-- [x] Create `orchestration` schema (tasks, executions tables)
-- [x] Seed test data via fixtures
-- [x] Verify cross-service queries work
-- [x] Extract migration patterns to SharedKernel (DbContextExtensions)
-- **Deliverable**: Database migration scripts in each service ✅
+- ✅ Setup EF Core migrations per service (Chat, Orchestration)
+- ✅ Create `chat` schema (conversations, messages tables)
+- ✅ Create `orchestration` schema (tasks, executions tables)
+- ⏳ Seed test data via fixtures (optional)
+- ⏳ Cross-service queries (not required in microservices; N/A)
+- ✅ Extract migration patterns to SharedKernel (DbContextExtensions)
+- **Deliverable**: Database migration scripts in services and applied on startup
 
-**Progress notes (Oct 25, 2025):**
-- ✅ Chat and Orchestration services use PostgreSQL schemas `chat` and `orchestration` respectively, with code-first migrations committed.
-- ✅ On startup, services apply pending migrations via `DbContextExtensions.MigrateDatabaseIfRelationalAsync()` when using a relational provider; in dev/test without PostgreSQL, an EF Core InMemory fallback is used to keep tests green.
-- ✅ Connection strings are sourced from environment or user secrets; no credentials are hardcoded in `appsettings.json`.
+
 
 **Day 5: CI/CD Pipeline**
-- [ ] GitHub Actions workflow per service
-- [ ] Build, test, docker build, push to registry
-- [ ] Separate pipelines allow parallel deployment
-- **Deliverable**: `.github/workflows/gateway.yml` and similar
+- ✅ GitHub Actions workflow per service
+- ✅ Build, test, docker build, push to registry
+- ✅ Separate pipelines allow parallel deployment
+- **Deliverable**: Per-service workflows under `.github/workflows/`
 
-   Tracking: #76
 
-**Message Bus Wiring (Completed Oct 25, 2025)**
-- [x] MassTransit configured across services (Chat, Orchestration, CI/CD Monitor) - PR #74 ✅
-- [x] RabbitMQ connection via configuration (host/username/password)
-- [x] Basic publish/consume stubs implemented using SharedKernel events
-- [x] Health checks added for RabbitMQ when configured
-- [x] Tests green locally; Chat tests use in-memory EF when Docker is unavailable
-- [x] SharedKernel extensions for consistent RabbitMQ config (RabbitMQConfigurationExtensions, HealthCheckExtensions)
-- **Deliverable**: Services start with bus wired; event logs visible when broker is running ✅
+
+**Message Bus Wiring (Completed)**
+- ✅ MassTransit configured across services (Chat, Orchestration)
+- ✅ RabbitMQ connection via configuration (host/username/password)
+- ✅ SharedKernel extensions for consistent RabbitMQ config and health checks
+- ✅ Basic consumer stubs wired; endpoints configured
+- **Deliverable**: Services start with bus wired; event logs visible when broker is running
 
 ### Week 4: Gateway Implementation
 
 **Days 1-2: YARP Reverse Proxy**
-- [x] Install `Yarp.ReverseProxy` NuGet in Gateway project (PR #69) ✅
-- [x] Configure routes in `appsettings.json` for all 8 services ✅
-- [x] Add health checks per upstream service ✅
-- [x] Test routing with `curl` or Postman ✅
-- **Deliverable**: Gateway routes requests to backend services ✅
+- ✅ Install and configure `Yarp.ReverseProxy` in Gateway project
+- ✅ Routes defined in `appsettings.json` for multiple services with active health checks
+- ✅ Tested routing via configuration and health endpoints
+- **Deliverable**: Gateway routes requests to backend services
 
 **Days 3-4: Authentication & Authorization**
-- [x] JWT token validation middleware (PR #65, #66) ✅
-- [x] User claims extraction (userId, roles) ✅
-- [x] CORS policy configuration (PR #66) ✅
-- [x] Per-route authorization requirements ✅
-- **Deliverable**: Protected endpoints require valid JWT ✅
+- ✅ JWT token validation middleware
+- ✅ User claims extraction (userId, roles)
+- ✅ CORS policy configuration
+- ✅ Per-route authorization (proxy requires auth)
+- **Deliverable**: Protected endpoints require valid JWT
 
 **Day 5: Rate Limiting & Circuit Breaker**
-- [x] Redis-backed distributed rate limiter (PR #68) ✅
-- [x] Polly circuit breaker policies for each service (PR #67) ✅
-- [x] Retry with exponential backoff ✅
-- [x] Observability metrics (circuit open/closed events) ✅
-- **Deliverable**: Gateway resists overload and cascading failures ✅
+- ✅ Redis-backed distributed rate limiter (per-IP + per-user)
+- ✅ Polly: retries with exponential backoff + circuit breaker
+- ✅ Observability via Serilog + OpenTelemetry
+- **Deliverable**: Gateway resists overload and cascading failures
 
-**Progress notes (Oct 25, 2025):**
-- ✅ Gateway serves as single entry point with YARP routing to all 8 microservices
-- ✅ JWT authentication configured with token validation and user claims propagation
-- ✅ CORS policies allow specified origins (configurable for dev/prod)
-- ✅ Redis-backed rate limiting (1000 req/hour per user, 100 req/min per IP)
-- ✅ Polly resilience: 3 retries with exponential backoff + circuit breaker (5 failures in 30s → 60s break)
-- ✅ Health checks registered for all dependent services
-- ✅ OpenTelemetry configured with OTLP exporters for tracing and metrics
+
 
 ### Week 5-6: Observability
 
 **Days 1-3: OpenTelemetry Integration**
 
-- [x] Add OTLP exporters to all services (PR #74) ✅
-- [x] Implement correlation ID propagation ✅
-- [x] Configure trace sampling (100% in dev for Phase 1 validation) ✅
-- [ ] Setup Jaeger for distributed tracing (exporters ready, UI deployment pending)
+- ✅ Add OTLP exporters to services (Gateway, Chat, Orchestration)
+- ✅ Implement correlation ID propagation
+- ✅ Configure Jaeger (OTLP collector + UI)
+- ✅ Prometheus metrics endpoints exposed
 
-- **Deliverable**: End-to-end traces visible in Jaeger UI (95% complete)
+- **Deliverable**: End-to-end traces visible in Jaeger UI
 
-   Tracking: #77
 
 **Days 4-5: Metrics & Dashboards**
 
-- [x] Instrument custom metrics (task duration, queue depth) ✅
-- [x] Configure Prometheus scraping endpoints on all services ✅
-- [x] Create Grafana dashboards (5 dashboards: system, API, services, database, cache) ✅
-- [x] Setup alerting rules (high error rate, high latency) ✅
+- ✅ Instrument metrics and expose Prometheus endpoints
+- ✅ Configure Prometheus scrape targets for services and exporters
+- ✅ Grafana dashboards provisioned (system, API, services, database, cache, alerts)
+- ✅ Alerting rules configured (API/infrastructure/message bus)
 
-- **Deliverable**: Real-time metrics visible in Grafana ✅
+- **Deliverable**: Real-time metrics visible in Grafana
 
-   Tracking: #78, #79, #80 (PR #80 merged Oct 25, 2025)
 
-**Progress notes (Oct 25, 2025):**
-- ✅ OpenTelemetry SDK configured across Gateway, Chat, and Orchestration services
-- ✅ Traces include Activity API spans for database operations, HTTP calls, and event publishing
-- ✅ Correlation IDs propagated via `X-Correlation-Id` header and Activity tags
-- ✅ Prometheus metrics exported on `/metrics` endpoint (ASP.NET Core + custom instrumentation)
-- ✅ Grafana provisioning complete with 6 dashboards (system, API, services, database, cache, alerts)
-- ✅ **Alert rules deployed**: 21 alerts across API, infrastructure, and message bus (PR #80)
-- ✅ **Alertmanager configured**: Routing, grouping, and inhibition rules set up
-- ✅ **Runbooks created**: 5 detailed operational runbooks with diagnosis and resolution steps
-- ⏳ Jaeger configured to receive OTLP traces, UI container deployment in docker-compose pending
+
 
 ---
 
@@ -227,38 +184,31 @@ Production-ready infrastructure: Gateway, Auth, Databases, Message Bus, Observab
 ### Goal
 Implement the three most critical services: Chat, Orchestration, ML Classifier.
 
-**Phase 1 Completion Status (Oct 25, 2025):**
-- ✅ Infrastructure complete: PostgreSQL schemas, EF Core migrations, MassTransit + RabbitMQ wiring
-- ✅ SharedKernel infrastructure extensions (DbContext, RabbitMQ config, health checks)
-- ✅ Gateway with YARP, JWT auth, CORS, Polly, rate limiting
-- ✅ Testcontainers integration test framework with Docker fallback
-- ✅ Angular 20.3 dashboard scaffolded with SignalR and Material Design
-- ✅ OpenTelemetry configured across all services
-- 🚀 **Ready to begin Phase 2: Core service REST API implementation**
+Prerequisite: Phase 1 (Infrastructure & Gateway) deliverables complete.
 
 ### Week 7-8: Chat Service
 
 **Days 1-2: Domain Model & Repository**
-- [x] Implement entities (Conversation, Message) - infrastructure complete (PR #72, #73, #74) ✅
-- [x] Create repository pattern with EF Core ✅
-- [ ] Add comprehensive validation (FluentValidation) - basic validation present
-- [x] Write unit tests (85%+ coverage) - repository tests passing ✅
-- **Deliverable**: `CodingAgent.Services.Chat.Domain` complete (infrastructure done, REST endpoints pending)
+- ✅ Implement entities (Conversation, Message)
+- [ ] Create repository pattern with EF Core (endpoints currently use DbContext)
+- [ ] Add comprehensive validation (FluentValidation)
+- [ ] Write unit tests (85%+ coverage) — integration tests exist; add more unit tests
+- **Deliverable**: Domain layer largely in place; refine validation/tests
 
 **Days 3-5: REST API**
-- [ ] Implement all endpoints (POST /conversations, GET /messages, etc.)
+- ✅ Implement core endpoints (list/get/create/delete conversations)
 - [ ] Add pagination (page size: 50)
 - [ ] Implement search (full-text via PostgreSQL)
-- [x] Write integration tests (Testcontainers) ✅ — Testcontainers configured for PostgreSQL with automatic in-memory fallback when Docker unavailable (PR #70)
-- **Deliverable**: Chat REST API passing all tests (infrastructure ready, endpoints pending)
+- ✅ Integration tests (Testcontainers) with in-memory fallback when Docker unavailable
+- **Deliverable**: REST API functional; add pagination/search and expand tests
 
 **Days 6-8: SignalR WebSocket**
-- [ ] Implement `/hubs/chat` SignalR hub
+- ✅ Implement `/hubs/chat` SignalR hub
 - [ ] Add connection authentication (JWT in query string)
-- [ ] Implement typing indicators
+- ✅ Implement typing indicators
 - [ ] Add presence tracking (online/offline)
 - [ ] Write SignalR integration tests
-- **Deliverable**: Real-time chat working end-to-end
+- **Deliverable**: Real-time chat partially complete; add auth/presence/tests
 
 **Days 9-10: File Upload & Cache**
 - [ ] Implement multipart file upload
@@ -584,10 +534,10 @@ Fix bugs, optimize performance, complete documentation.
 
 ## Next Steps
 
-1. **Review & Approve Roadmap** (End of Week 1)
-2. **Start Phase 0** (Week 2)
-3. **Weekly Standup**: Monday 9am (progress review)
-4. **Monthly Checkpoint**: Review metrics, adjust timeline
+1. Phase 2 kickoff: Chat REST API hardening (validation, auth) and pagination/search
+2. Orchestration: implement domain entities and begin SingleShot/Iterative strategies
+3. ML Classifier: wire heuristic service to Orchestration; prepare ML stage scaffolding
+4. Expand integration/unit tests; add CI gates for coverage thresholds
 
 ---
 

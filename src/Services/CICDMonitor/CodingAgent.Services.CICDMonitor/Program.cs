@@ -44,8 +44,11 @@ builder.Services.AddMassTransit(x =>
 // Add health checks
 var healthChecksBuilder = builder.Services.AddHealthChecks();
 
-// RabbitMQ health check if configured (avoid credentials in URI)
-healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
+// RabbitMQ health check if configured (only in Production to avoid dev package mismatches)
+if (builder.Environment.IsProduction())
+{
+    healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
+}
 
 var app = builder.Build();
 

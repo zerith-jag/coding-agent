@@ -67,8 +67,11 @@ if (!string.IsNullOrEmpty(redisConnection))
     healthChecksBuilder.AddRedis(redisConnection, name: "redis");
 }
 
-// RabbitMQ health check if configured
-healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
+// RabbitMQ health check if configured (only in Production to avoid dev package mismatches)
+if (builder.Environment.IsProduction())
+{
+    healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
+}
 
 // OpenTelemetry - Tracing and Metrics
 var serviceName = "chat-service";

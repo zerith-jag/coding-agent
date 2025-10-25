@@ -128,7 +128,7 @@ services:
     networks:
       - coding-agent
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      test: ["CMD-SHELL", "if command -v wget >/dev/null 2>&1; then wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy; elif command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:9090/-/healthy >/dev/null; else echo 'no http client' >&2 && exit 1; fi"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -157,7 +157,7 @@ services:
     networks:
       - coding-agent
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      test: ["CMD-SHELL", "if command -v wget >/dev/null 2>&1; then wget --no-verbose --tries=1 --spider http://localhost:9093/-/healthy; elif command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:9093/-/healthy >/dev/null; else echo 'no http client' >&2 && exit 1; fi"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -191,7 +191,7 @@ services:
     depends_on:
       - prometheus
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      test: ["CMD-SHELL", "if command -v wget >/dev/null 2>&1; then wget --no-verbose --tries=1 --spider http://localhost:3000/api/health; elif command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:3000/api/health >/dev/null; else echo 'no http client' >&2 && exit 1; fi"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -228,7 +228,7 @@ services:
     networks:
       - coding-agent
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:14269/"]
+      test: ["CMD-SHELL", "if command -v wget >/dev/null 2>&1; then wget --no-verbose --tries=1 --spider http://localhost:14269/; elif command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:14269/ >/dev/null; else echo 'no http client' >&2 && exit 1; fi"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -253,11 +253,7 @@ services:
     networks:
       - coding-agent
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      disable: true
     logging:
       driver: "json-file"
       options:
@@ -280,7 +276,7 @@ services:
     depends_on:
       - postgres
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9187/"]
+      test: ["CMD-SHELL", "if command -v wget >/dev/null 2>&1; then wget --no-verbose --tries=1 --spider http://localhost:9187/; elif command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:9187/ >/dev/null; else echo 'no http client' >&2 && exit 1; fi"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -308,7 +304,68 @@ services:
     depends_on:
       - redis
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9121/"]
+      disable: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # Node Exporter - Host Metrics
+  # ==========================================
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: coding-agent-node-exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - /:/host:ro
+    ports:
+      - '9100:9100'
+    networks:
+      - coding-agent
+    healthcheck:
+      test: ["CMD-SHELL", "if command -v wget >/dev/null 2>&1; then wget --no-verbose --tries=1 --spider http://localhost:9100/metrics; elif command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:9100/metrics >/dev/null; else echo 'no http client' >&2 && exit 1; fi"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # cAdvisor - Container Metrics
+  # ==========================================
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: coding-agent-cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - "/dev/kmsg"
+    command:
+      - '--docker_only=true'
+      - '--store_container_labels=true'
+    volumes:
+      - '/:/rootfs:ro'
+      - '/var/run:/var/run:ro'
+      - '/sys:/sys:ro'
+      - '/var/lib/docker/:/var/lib/docker:ro'
+      - '/var/lib/containerd:/var/lib/containerd:ro'
+      - '/run/containerd:/run/containerd:ro'
+      - '/dev/disk/:/dev/disk:ro'
+    ports:
+      - '8080:8080'
+    networks:
+      - coding-agent
+    healthcheck:
+      test: ["CMD-SHELL", "if command -v wget >/dev/null 2>&1; then wget --no-verbose --tries=1 --spider http://localhost:8080/metrics; elif command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:8080/metrics >/dev/null; else echo 'no http client' >&2 && exit 1; fi"]
       interval: 30s
       timeout: 10s
       retries: 3

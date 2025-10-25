@@ -36,8 +36,11 @@ if (!string.IsNullOrWhiteSpace(connectionString))
         tags: new[] { "db", "ready" });
 }
 
-// RabbitMQ health check if configured
-healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
+// RabbitMQ health check if configured (only in Production to avoid dev package mismatches)
+if (builder.Environment.IsProduction())
+{
+    healthChecksBuilder.AddRabbitMQHealthCheckIfConfigured(builder.Configuration);
+}
 
 // OpenTelemetry configuration
 var serviceName = "CodingAgent.Services.Orchestration";
