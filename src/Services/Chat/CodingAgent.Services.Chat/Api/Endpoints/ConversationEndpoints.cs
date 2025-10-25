@@ -18,8 +18,8 @@ public static class ConversationEndpoints
 
         group.MapGet("", GetConversations)
             .WithName("GetConversations")
-            .WithDescription("Retrieve all conversations ordered by most recently updated")
-            .WithSummary("List conversations")
+            .WithDescription("Retrieve all conversations ordered by most recently updated. Use 'q' parameter for full-text search across conversation titles and message content.")
+            .WithSummary("List or search conversations")
             .Produces<List<ConversationDto>>();
 
         group.MapGet("{id:guid}", GetConversation)
@@ -52,8 +52,26 @@ public static class ConversationEndpoints
             .Produces(StatusCodes.Status404NotFound);
     }
 
-    private static async Task<IResult> GetConversations(IConversationRepository repository, ILogger<Program> logger, CancellationToken ct)
+    private static async Task<IResult> GetConversations(
+        string? q,
+        IConversationRepository repository,
+        ILogger<Program> logger,
+        CancellationToken ct)
     {
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            logger.LogInformation("Searching conversations with query: {Query}", q);
+            var searchResults = await repository.SearchAsync(q, ct);
+            var searchItems = searchResults.Select(c => new ConversationDto
+            {
+                Id = c.Id,
+                Title = c.Title,
+                CreatedAt = c.CreatedAt,
+                UpdatedAt = c.UpdatedAt
+            }).ToList();
+            return Results.Ok(searchItems);
+        }
+
         logger.LogInformation("Getting conversations");
         // TODO: Filter by authenticated user when auth is wired
         var conversations = await repository.GetAllAsync(ct);

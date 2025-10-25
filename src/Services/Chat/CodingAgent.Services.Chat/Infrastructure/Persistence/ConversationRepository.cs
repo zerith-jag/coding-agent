@@ -47,6 +47,71 @@ public class ConversationRepository : IConversationRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IEnumerable<Conversation>> SearchAsync(string query, CancellationToken ct = default)
+    {
+        _logger.LogDebug("Searching conversations with query: {Query}", query);
+        
+        // Check if we're using PostgreSQL or in-memory database
+        var providerName = _context.Database.ProviderName;
+        var isPostgres = providerName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) ?? false;
+        
+        if (isPostgres)
+        {
+            // PostgreSQL full-text search
+            var searchTerms = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var searchQuery = string.Join(" & ", searchTerms);
+            
+            var conversations = await _context.Conversations
+                .Include(c => c.Messages)
+                .Where(c => 
+                    // Search in conversation title
+                    EF.Functions.ToTsVector("english", c.Title).Matches(EF.Functions.ToTsQuery("english", searchQuery)) ||
+                    // Search in message content
+                    c.Messages.Any(m => EF.Functions.ToTsVector("english", m.Content).Matches(EF.Functions.ToTsQuery("english", searchQuery)))
+                )
+                .Select(c => new 
+                {
+                    Conversation = c,
+                    // Calculate relevance score
+                    Rank = EF.Functions.ToTsVector("english", c.Title).Rank(EF.Functions.ToTsQuery("english", searchQuery)) +
+                           c.Messages.Max(m => (double?)EF.Functions.ToTsVector("english", m.Content).Rank(EF.Functions.ToTsQuery("english", searchQuery))) ?? 0
+                })
+                .OrderByDescending(x => x.Rank)
+                .ThenByDescending(x => x.Conversation.UpdatedAt)
+                .Take(100)
+                .Select(x => x.Conversation)
+                .ToListAsync(ct);
+            
+            return conversations;
+        }
+        else
+        {
+            // Fallback for in-memory database: simple LIKE search
+            var searchTerms = query.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            
+            // Search in conversation titles
+            var conversationsByTitle = _context.Conversations
+                .Where(c => searchTerms.Any(term => c.Title.ToLower().Contains(term)));
+            
+            // Search in message content
+            var conversationIdsByMessage = _context.Messages
+                .Where(m => searchTerms.Any(term => m.Content.ToLower().Contains(term)))
+                .Select(m => m.ConversationId)
+                .Distinct();
+            
+            // Combine results
+            var conversations = await _context.Conversations
+                .Include(c => c.Messages)
+                .Where(c => conversationsByTitle.Select(x => x.Id).Contains(c.Id) || 
+                           conversationIdsByMessage.Contains(c.Id))
+                .OrderByDescending(c => c.UpdatedAt)
+                .Take(100)
+                .ToListAsync(ct);
+            
+            return conversations;
+        }
+    }
+
     public async Task<Conversation> CreateAsync(Conversation conversation, CancellationToken ct = default)
     {
         _logger.LogInformation("Creating conversation {ConversationId}", conversation.Id);
