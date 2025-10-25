@@ -3,6 +3,7 @@ using FluentAssertions;
 
 namespace CodingAgent.SharedKernel.Tests.Results;
 
+[Trait("Category", "Unit")]
 public class ResultTests
 {
     [Fact]

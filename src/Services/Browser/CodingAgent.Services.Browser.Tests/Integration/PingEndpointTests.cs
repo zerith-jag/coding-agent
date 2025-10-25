@@ -6,6 +6,7 @@ using Xunit;
 
 namespace CodingAgent.Services.Browser.Tests.Integration;
 
+[Trait("Category", "Integration")]
 public class PingEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;

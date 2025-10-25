@@ -4,6 +4,7 @@ using Xunit;
 
 namespace CodingAgent.Services.Chat.Tests.Unit.Domain.Entities;
 
+[Trait("Category", "Unit")]
 public class ConversationTests
 {
     [Fact]

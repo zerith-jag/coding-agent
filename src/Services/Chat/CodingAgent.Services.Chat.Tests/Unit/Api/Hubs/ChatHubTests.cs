@@ -7,6 +7,7 @@ using Xunit;
 
 namespace CodingAgent.Services.Chat.Tests.Unit.Api.Hubs;
 
+[Trait("Category", "Unit")]
 public class ChatHubTests
 {
     private readonly Mock<ILogger<ChatHub>> _loggerMock;

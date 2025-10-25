@@ -254,9 +254,20 @@ span.SetAttribute("task.type", taskType);
 
 ## Testing Requirements (85%+ Coverage)
 
+**CRITICAL: All test classes MUST have [Trait] attributes for proper test filtering and CI performance**
+
+### Test Trait Requirements
+- **Unit tests** must have `[Trait("Category", "Unit")]` - fast tests with no external dependencies
+- **Integration tests** must have `[Trait("Category", "Integration")]` - tests using Testcontainers, databases, or external services
+- This enables:
+  - Fast local development: `dotnet test --filter "Category=Unit"` (< 1 second)
+  - Separate CI stages: Unit tests run first, integration tests in parallel jobs
+  - Avoiding VS Code "not responding" dialogs during slow integration test runs
+
 ### Unit Tests (Domain + Application layers)
 ```csharp
 // CodingAgent.Services.Chat.Tests/Unit/Domain/ConversationTests.cs
+[Trait("Category", "Unit")]
 public class ConversationTests
 {
     [Fact]
@@ -278,6 +289,8 @@ public class ConversationTests
 ### Integration Tests (with Testcontainers)
 ```csharp
 // CodingAgent.Services.Chat.Tests/Integration/ConversationEndpointsTests.cs
+[Collection("ChatServiceCollection")]
+[Trait("Category", "Integration")]
 public class ConversationEndpointsTests : IClassFixture<ChatServiceFixture>
 {
     [Fact]

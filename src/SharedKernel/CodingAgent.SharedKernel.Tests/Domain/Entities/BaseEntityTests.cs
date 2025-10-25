@@ -23,6 +23,7 @@ public class TestEntity : BaseEntity
     }
 }
 
+[Trait("Category", "Unit")]
 public class BaseEntityTests
 {
     [Fact]

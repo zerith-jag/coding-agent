@@ -6,6 +6,7 @@ using Xunit;
 
 namespace CodingAgent.Services.Chat.Tests.Unit.Application.Validators;
 
+[Trait("Category", "Unit")]
 public class UpdateConversationRequestValidatorTests
 {
     private readonly UpdateConversationRequestValidator _validator = new();

@@ -25,6 +25,7 @@ public class Address : ValueObject
     }
 }
 
+[Trait("Category", "Unit")]
 public class ValueObjectTests
 {
     [Fact]
