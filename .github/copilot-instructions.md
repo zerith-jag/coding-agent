@@ -1,14 +1,8 @@
-<todos title="Complete merge of Redis message caching into master" rule="Review steps frequently throughout the conversation and DO NOT stop between steps unless they explicitly require it.">
-- [x] resolve-merge-conflicts-chat: Resolve merge conflicts in Chat service files (Message.cs, MessageCacheService.cs, ConversationRepository.cs) using agreed behaviors (safe hydration, ascending cache order). 🔴
-  _Keep ascending timestamp storage with TakeLast for last 100; use Conversation.HydrateMessages to avoid business logic; keep FromCache future-timestamp validation._
-- [x] fix-enum-parsing-in-cache-dto: Replace Enum.Parse with Enum.TryParse in MessageCacheService.MessageDto.ToEntity() with descriptive error handling. 🔴
-  _Avoid throwing generic parsing exceptions when role is invalid; throw ArgumentException with context._
-- [-] run-chat-tests: Build and run Chat service unit and integration tests to verify cache changes. 🔴
-  _Use Category=Integration for integration tests; ensure Docker is running for Testcontainers._
-- [ ] commit-and-push-merge: Commit resolved merge to master and push to origin. 🔴
-  _Conventional commit message: merge: resolve conflicts for Redis caching integration._
-- [ ] verify-quality-gates: Report Build, Lint/Typecheck, and Tests status after merge. 🟡
-  _Lint for .NET via dotnet format if configured; focus on build/test pass here._
+<todos title="Address PR #113 review comments and merge" rule="Review steps frequently throughout the conversation and DO NOT stop between steps unless they explicitly require it.">
+- [x] add-query-length-validation: Add max length check (200 chars) and validate sanitized terms contain only word characters in SearchAsync 🔴
+- [x] extract-dto-mapping: Move conversation-to-DTO mapping logic from GetConversations into a private helper method to eliminate duplication 🔴
+- [x] run-tests-pr113: Execute Chat service tests to ensure review fixes don't break existing functionality 🔴
+- [-] merge-pr113: Commit changes, push to branch, and merge PR into master 🔴
 </todos>
 
 <!-- Todos: Review steps frequently throughout the conversation and DO NOT stop between steps unless they explicitly require it. -->
