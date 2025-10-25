@@ -1,4 +1,5 @@
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,9 +9,16 @@ builder.Services.AddHealthChecks();
 
 // OpenTelemetry
 builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService("CodingAgent.Services.Dashboard", serviceVersion: "2.0.0"))
     .WithTracing(tracing => tracing
         .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation())
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter(options =>
+        {
+            var endpoint = builder.Configuration["OpenTelemetry:Endpoint"] ?? "http://jaeger:4317";
+            options.Endpoint = new Uri(endpoint);
+        }))
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
