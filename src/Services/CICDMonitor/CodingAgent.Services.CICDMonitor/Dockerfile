@@ -14,7 +14,7 @@ COPY src/SharedKernel/CodingAgent.SharedKernel/CodingAgent.SharedKernel.csproj s
 # Copy csproj and restore dependencies
 COPY src/Services/CICDMonitor/CodingAgent.Services.CICDMonitor/CodingAgent.Services.CICDMonitor.csproj src/Services/CICDMonitor/CodingAgent.Services.CICDMonitor/
 RUN --mount=type=cache,id=nuget-cache,sharing=locked,target=/root/.nuget/packages \
-	dotnet restore src/Services/CICDMonitor/CodingAgent.Services.CICDMonitor/CodingAgent.Services.CICDMonitor.csproj
+	dotnet restore src/Services/CICDMonitor/CodingAgent.Services.CICDMonitor/CodingAgent.Services.CICDMonitor.csproj --force --no-cache
 
 # Copy source code and build
 COPY src/SharedKernel/CodingAgent.SharedKernel/ src/SharedKernel/CodingAgent.SharedKernel/

@@ -11,7 +11,7 @@ COPY Directory.Build.props ./
 # Copy project file and restore dependencies
 COPY src/Services/GitHub/CodingAgent.Services.GitHub/CodingAgent.Services.GitHub.csproj src/Services/GitHub/CodingAgent.Services.GitHub/
 RUN --mount=type=cache,id=nuget-cache,sharing=locked,target=/root/.nuget/packages \
-	dotnet restore src/Services/GitHub/CodingAgent.Services.GitHub/CodingAgent.Services.GitHub.csproj
+	dotnet restore src/Services/GitHub/CodingAgent.Services.GitHub/CodingAgent.Services.GitHub.csproj --force --no-cache
 
 # Copy source code and build
 COPY src/Services/GitHub/CodingAgent.Services.GitHub/ src/Services/GitHub/CodingAgent.Services.GitHub/

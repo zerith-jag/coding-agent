@@ -11,7 +11,7 @@ COPY Directory.Build.props ./
 # Copy project file and restore dependencies
 COPY src/Services/Dashboard/CodingAgent.Services.Dashboard/CodingAgent.Services.Dashboard.csproj src/Services/Dashboard/CodingAgent.Services.Dashboard/
 RUN --mount=type=cache,id=nuget-cache,sharing=locked,target=/root/.nuget/packages \
-	dotnet restore src/Services/Dashboard/CodingAgent.Services.Dashboard/CodingAgent.Services.Dashboard.csproj
+	dotnet restore src/Services/Dashboard/CodingAgent.Services.Dashboard/CodingAgent.Services.Dashboard.csproj --force --no-cache
 
 # Copy source code and build
 COPY src/Services/Dashboard/CodingAgent.Services.Dashboard/ src/Services/Dashboard/CodingAgent.Services.Dashboard/

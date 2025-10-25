@@ -14,7 +14,7 @@ COPY src/SharedKernel/CodingAgent.SharedKernel/CodingAgent.SharedKernel.csproj s
 # Copy service project file and restore dependencies
 COPY src/Services/Orchestration/CodingAgent.Services.Orchestration/CodingAgent.Services.Orchestration.csproj src/Services/Orchestration/CodingAgent.Services.Orchestration/
 RUN --mount=type=cache,id=nuget-cache,sharing=locked,target=/root/.nuget/packages \
-  dotnet restore src/Services/Orchestration/CodingAgent.Services.Orchestration/CodingAgent.Services.Orchestration.csproj
+  dotnet restore src/Services/Orchestration/CodingAgent.Services.Orchestration/CodingAgent.Services.Orchestration.csproj --force --no-cache
 
 # Copy all source files
 COPY src/SharedKernel/CodingAgent.SharedKernel/ src/SharedKernel/CodingAgent.SharedKernel/

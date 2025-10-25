@@ -7,7 +7,7 @@ WORKDIR /src
 # Copy project file and restore dependencies
 COPY src/Services/Browser/CodingAgent.Services.Browser/CodingAgent.Services.Browser.csproj src/Services/Browser/CodingAgent.Services.Browser/
 RUN --mount=type=cache,id=nuget-cache,sharing=locked,target=/root/.nuget/packages \
-    dotnet restore src/Services/Browser/CodingAgent.Services.Browser/CodingAgent.Services.Browser.csproj
+    dotnet restore src/Services/Browser/CodingAgent.Services.Browser/CodingAgent.Services.Browser.csproj --force --no-cache
 
 # Copy source code and build
 COPY src/Services/Browser/CodingAgent.Services.Browser/ src/Services/Browser/CodingAgent.Services.Browser/

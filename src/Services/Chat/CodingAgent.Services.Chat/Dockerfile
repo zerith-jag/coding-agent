@@ -14,7 +14,7 @@ COPY src/SharedKernel/CodingAgent.SharedKernel/CodingAgent.SharedKernel.csproj s
 # Copy service csproj and restore dependencies
 COPY src/Services/Chat/CodingAgent.Services.Chat/CodingAgent.Services.Chat.csproj src/Services/Chat/CodingAgent.Services.Chat/
 RUN --mount=type=cache,id=nuget-cache,sharing=locked,target=/root/.nuget/packages \
-	dotnet restore src/Services/Chat/CodingAgent.Services.Chat/CodingAgent.Services.Chat.csproj
+	dotnet restore src/Services/Chat/CodingAgent.Services.Chat/CodingAgent.Services.Chat.csproj --force --no-cache
 
 # Copy everything and build
 COPY src/SharedKernel/CodingAgent.SharedKernel/ src/SharedKernel/CodingAgent.SharedKernel/
