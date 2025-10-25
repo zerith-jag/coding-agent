@@ -50,7 +50,8 @@ jobs:
           if [ -z "$CTX" ] && [ -f src/Services/Browser/Dockerfile ]; then CTX=src/Services/Browser; fi
           if [ -n "$CTX" ]; then
             echo "Dockerfile found in $CTX. Building image..."
-            docker build "$CTX" -t ghcr.io/${{ github.repository }}/browser:${{ github.sha }}
+            REPO=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+            docker build "$CTX" -t ghcr.io/$REPO/browser:$GITHUB_SHA
           else
             echo "No Dockerfile found for Browser. Skipping docker build."
           fi
