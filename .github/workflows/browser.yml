@@ -45,13 +45,10 @@ jobs:
       - name: Conditional Docker build
         run: |
           set -e
-          CTX=""
-          if [ -f src/Services/Browser/CodingAgent.Services.Browser/Dockerfile ]; then CTX=src/Services/Browser/CodingAgent.Services.Browser; fi
-          if [ -z "$CTX" ] && [ -f src/Services/Browser/Dockerfile ]; then CTX=src/Services/Browser; fi
-          if [ -n "$CTX" ]; then
-            echo "Dockerfile found in $CTX. Building image..."
+          if [ -f src/Services/Browser/CodingAgent.Services.Browser/Dockerfile ]; then
+            echo "Dockerfile found. Building image from repository root..."
             REPO=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
-            docker build "$CTX" -t ghcr.io/$REPO/browser:$GITHUB_SHA
+            docker build -f src/Services/Browser/CodingAgent.Services.Browser/Dockerfile -t ghcr.io/$REPO/browser:$GITHUB_SHA .
           else
             echo "No Dockerfile found for Browser. Skipping docker build."
           fi

@@ -48,13 +48,10 @@ jobs:
       - name: Conditional Docker build
         run: |
           set -e
-          CTX=""
-          if [ -f src/Gateway/CodingAgent.Gateway/Dockerfile ]; then CTX=src/Gateway/CodingAgent.Gateway; fi
-          if [ -z "$CTX" ] && [ -f src/Gateway/Dockerfile ]; then CTX=src/Gateway; fi
-          if [ -n "$CTX" ]; then
-            echo "Dockerfile found in $CTX. Building image..."
+          if [ -f src/Gateway/CodingAgent.Gateway/Dockerfile ]; then
+            echo "Dockerfile found. Building image from repository root..."
             REPO=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
-            docker build "$CTX" -t ghcr.io/$REPO/gateway:$GITHUB_SHA
+            docker build -f src/Gateway/CodingAgent.Gateway/Dockerfile -t ghcr.io/$REPO/gateway:$GITHUB_SHA .
           else
             echo "No Dockerfile found for Gateway. Skipping docker build."
           fi

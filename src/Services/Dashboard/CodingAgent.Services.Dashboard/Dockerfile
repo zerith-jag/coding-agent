@@ -3,11 +3,12 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy project file and restore dependencies
-COPY CodingAgent.Services.Dashboard.csproj .
-RUN dotnet restore CodingAgent.Services.Dashboard.csproj
+COPY src/Services/Dashboard/CodingAgent.Services.Dashboard/CodingAgent.Services.Dashboard.csproj src/Services/Dashboard/CodingAgent.Services.Dashboard/
+RUN dotnet restore src/Services/Dashboard/CodingAgent.Services.Dashboard/CodingAgent.Services.Dashboard.csproj
 
 # Copy source code and build
-COPY . .
+COPY src/Services/Dashboard/CodingAgent.Services.Dashboard/ src/Services/Dashboard/CodingAgent.Services.Dashboard/
+WORKDIR /src/src/Services/Dashboard/CodingAgent.Services.Dashboard
 RUN dotnet build CodingAgent.Services.Dashboard.csproj -c Release -o /app/build
 
 # Publish stage

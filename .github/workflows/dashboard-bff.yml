@@ -45,13 +45,10 @@ jobs:
       - name: Conditional Docker build
         run: |
           set -e
-          CTX=""
-          if [ -f src/Services/Dashboard/CodingAgent.Services.Dashboard/Dockerfile ]; then CTX=src/Services/Dashboard/CodingAgent.Services.Dashboard; fi
-          if [ -z "$CTX" ] && [ -f src/Services/Dashboard/Dockerfile ]; then CTX=src/Services/Dashboard; fi
-          if [ -n "$CTX" ]; then
-            echo "Dockerfile found in $CTX. Building image..."
+          if [ -f src/Services/Dashboard/CodingAgent.Services.Dashboard/Dockerfile ]; then
+            echo "Dockerfile found. Building image from repository root..."
             REPO=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
-            docker build "$CTX" -t ghcr.io/$REPO/dashboard-bff:$GITHUB_SHA
+            docker build -f src/Services/Dashboard/CodingAgent.Services.Dashboard/Dockerfile -t ghcr.io/$REPO/dashboard-bff:$GITHUB_SHA .
           else
             echo "No Dockerfile found for Dashboard BFF. Skipping docker build."
           fi

@@ -3,11 +3,12 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy project file and restore dependencies
-COPY CodingAgent.Services.GitHub.csproj .
-RUN dotnet restore CodingAgent.Services.GitHub.csproj
+COPY src/Services/GitHub/CodingAgent.Services.GitHub/CodingAgent.Services.GitHub.csproj src/Services/GitHub/CodingAgent.Services.GitHub/
+RUN dotnet restore src/Services/GitHub/CodingAgent.Services.GitHub/CodingAgent.Services.GitHub.csproj
 
 # Copy source code and build
-COPY . .
+COPY src/Services/GitHub/CodingAgent.Services.GitHub/ src/Services/GitHub/CodingAgent.Services.GitHub/
+WORKDIR /src/src/Services/GitHub/CodingAgent.Services.GitHub
 RUN dotnet build CodingAgent.Services.GitHub.csproj -c Release -o /app/build
 
 # Publish stage
