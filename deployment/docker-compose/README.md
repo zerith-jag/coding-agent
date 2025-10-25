@@ -280,20 +280,28 @@ Override at runtime with environment variables:
 
 **Verifying Traces**:
 
-1. **Start all infrastructure services**:
+1. **Quick verification using the provided script**:
+   ```bash
+   cd deployment/docker-compose
+   ./verify-jaeger.sh
+   ```
+
+2. **Manual verification steps**:
+
+   a. **Start all infrastructure services**:
    ```bash
    docker compose up -d
    ```
 
-2. **Wait for services to be healthy** (~30 seconds):
+   b. **Wait for services to be healthy** (~30 seconds):
    ```bash
    docker compose ps
    # All services should show "Up (healthy)"
    ```
 
-3. **Access Jaeger UI**: http://localhost:16686
+   c. **Access Jaeger UI**: http://localhost:16686
 
-4. **Generate test traces** by making requests to services:
+   d. **Generate test traces** by making requests to services:
    ```bash
    # Via Gateway (recommended - shows full trace)
    curl http://localhost:5000/api/chat/ping
@@ -304,7 +312,7 @@ Override at runtime with environment variables:
    curl http://localhost:5002/health  # Orchestration service
    ```
 
-5. **View traces in Jaeger UI**:
+   e. **View traces in Jaeger UI**:
    - Select service from dropdown (e.g., "CodingAgent.Gateway")
    - Click "Find Traces"
    - Click on a trace to see the full span timeline
